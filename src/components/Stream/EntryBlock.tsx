@@ -1,8 +1,9 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import Underline from '@tiptap/extension-underline';
-import Link from '@tiptap/extension-link';
+// Removed unused Link import
+// Removed unused Link import-list';
 import TaskList from '@tiptap/extension-task-list';
 import TaskItem from '@tiptap/extension-task-item';
 import Placeholder from '@tiptap/extension-placeholder';
@@ -32,6 +33,7 @@ import {
   DropdownMenuTrigger,
   DropdownMenuSeparator,
 } from '@/components/ui/dropdown-menu';
+// Removed unused Dialog imports
 import {
   Tooltip,
   TooltipContent,
@@ -122,15 +124,10 @@ export function EntryBlock({ entry }: EntryBlockProps) {
   const editor = useEditor({
     extensions: [
       StarterKit.configure({
-        codeBlock: false, // Use CodeBlockLowlight instead
+        codeBlock: false,
+        link: false,
       }),
       Underline,
-      Link.configure({
-        openOnClick: false,
-        HTMLAttributes: {
-          class: 'text-primary underline cursor-pointer',
-        },
-      }),
       TaskList,
       TaskItem.configure({
         nested: true,

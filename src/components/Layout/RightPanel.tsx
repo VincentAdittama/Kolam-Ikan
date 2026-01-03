@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import { writeText, readText } from '@tauri-apps/plugin-clipboard-manager';
 import {
   RefreshCw,
@@ -8,6 +8,9 @@ import {
   ArrowDownToLine,
   X,
   AlertCircle,
+  GitBranch,
+  Settings,
+  Maximize2,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
@@ -29,7 +32,11 @@ import { devLog } from '@/lib/devLogger';
 import { useAppStore } from '@/store/appStore';
 import { MODEL_CONFIGS, type DirectiveType, type ModelType, type AiMetadata, parseAIModelString } from '@/types';
 import { generateBridgePrompt, parseAIResponse, contentToProseMirror } from '@/services/bridge';
+import { SidebarBranchGraph } from '@/components/Branch/SidebarBranchGraph';
+import { FullscreenBranchGraph } from '@/components/Branch/FullscreenBranchGraph';
 import * as api from '@/services/api';
+
+type PanelTab = 'context' | 'branches';
 
 const DIRECTIVE_OPTIONS: { value: DirectiveType; label: string; icon: React.ReactNode; description: string }[] = [
   { value: 'DUMP', label: 'Dump', icon: <RefreshCw className="h-4 w-4" />, description: 'Refactor & Restructure' },
@@ -56,6 +63,8 @@ export function RightPanel() {
   const [isExporting, setIsExporting] = React.useState(false);
   const [isImporting, setIsImporting] = React.useState(false);
   const [exportError, setExportError] = React.useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<PanelTab>('context');
+  const [isFullscreenGraphOpen, setIsFullscreenGraphOpen] = useState(false);
 
   // Get staged entries
   const stagedEntries = useMemo(() => {
@@ -239,29 +248,90 @@ export function RightPanel() {
 
   return (
     <div className="flex h-full w-[320px] flex-col border-l bg-muted/30">
-      {/* Directive Selector */}
-      <div className="border-b p-4">
-        <h3 className="text-sm font-medium mb-3">Directive</h3>
-        <div className="space-y-2">
-          {DIRECTIVE_OPTIONS.map((option) => (
-            <button
-              key={option.value}
-              onClick={() => {
-                devLog.selectDirective(option.value);
-                setSelectedDirective(option.value);
-              }}
-              className={cn(
-                'flex w-full items-center gap-3 rounded-md px-3 py-2 text-left transition-colors',
-                selectedDirective === option.value
-                  ? 'bg-primary text-primary-foreground'
-                  : 'hover:bg-accent'
-              )}
-            >
-              {option.icon}
-              <div>
-                <div className="font-medium">{option.label}</div>
-                <div className={cn(
-                  'text-xs',
+      {/* Tab Navigation */}
+      <div className="flex border-b">
+        <button
+          onClick={() => setActiveTab('context')}
+          className={cn(
+            'flex-1 flex items-center justify-center gap-2 px-4 py-3 text-sm font-medium transition-colors border-b-2',
+            activeTab === 'context'
+              ? 'border-primary text-primary'
+              : 'border-transparent text-muted-foreground hover:text-foreground'
+          )}
+        >
+          <Settings className="h-4 w-4" />
+          Context
+        </button>
+        <button
+          onClick={() => setActiveTab('branches')}
+          className={cn(
+            'flex-1 flex items-center justify-center gap-2 px-4 py-3 text-sm font-medium transition-colors border-b-2',
+            activeTab === 'branches'
+              ? 'border-primary text-primary'
+              : 'border-transparent text-muted-foreground hover:text-foreground'
+          )}
+        >
+          <GitBranch className="h-4 w-4" />
+          Branches
+        </button>
+      </div>
+
+      {/* Branch Visualization Tab */}
+      {activeTab === 'branches' && (
+        <div className="flex-1 flex flex-col overflow-hidden">
+          <div className="flex-1 overflow-hidden">
+            <SidebarBranchGraph className="h-full" />
+          </div>
+          <div className="p-3 border-t">
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="outline"
+                  className="w-full gap-2"
+                  onClick={() => setIsFullscreenGraphOpen(true)}
+                >
+                  <Maximize2 className="h-4 w-4" />
+                  Open Fullscreen View
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                Open an immersive fullscreen branch visualization with particles
+              </TooltipContent>
+            </Tooltip>
+          </div>
+          <FullscreenBranchGraph
+            isOpen={isFullscreenGraphOpen}
+            onClose={() => setIsFullscreenGraphOpen(false)}
+          />
+        </div>
+      )}
+
+      {/* Context Tab */}
+      {activeTab === 'context' && (
+        <>
+          {/* Directive Selector */}
+          <div className="border-b p-4">
+            <h3 className="text-sm font-medium mb-3">Directive</h3>
+            <div className="space-y-2">
+              {DIRECTIVE_OPTIONS.map((option) => (
+                <button
+                  key={option.value}
+                  onClick={() => {
+                    devLog.selectDirective(option.value);
+                    setSelectedDirective(option.value);
+                  }}
+                  className={cn(
+                    'flex w-full items-center gap-3 rounded-md px-3 py-2 text-left transition-colors',
+                    selectedDirective === option.value
+                      ? 'bg-primary text-primary-foreground'
+                      : 'hover:bg-accent'
+                  )}
+                >
+                  {option.icon}
+                  <div>
+                    <div className="font-medium">{option.label}</div>
+                    <div className={cn(
+                      'text-xs',
                   selectedDirective === option.value
                     ? 'text-primary-foreground/80'
                     : 'text-muted-foreground'
@@ -427,6 +497,8 @@ export function RightPanel() {
           </p>
         )}
       </div>
+        </>
+      )}
     </div>
   );
 }

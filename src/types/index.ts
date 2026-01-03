@@ -510,3 +510,58 @@ export interface IpcResult<T> {
   data?: T;
   error?: AppError;
 }
+
+// ============================================================
+// BRANCH VISUALIZATION TYPES
+// ============================================================
+
+export interface BranchNode {
+  id: string;
+  entryId: string;
+  label: string;
+  role: EntryRole;
+  provider?: AIProvider;
+  parentId: string | null;
+  children: string[];
+  depth: number;
+  branchPath: number[];  // e.g., [0, 1, 0] means main -> first branch -> second sub-branch
+  createdAt: number;
+  versionNumber: number;
+  isHead: boolean;
+  isStaged: boolean;
+  // Physics properties (populated by D3)
+  x?: number;
+  y?: number;
+  vx?: number;
+  vy?: number;
+  fx?: number | null;  // Fixed position
+  fy?: number | null;
+}
+
+export interface BranchLink {
+  id: string;
+  source: string;
+  target: string;
+  isBranch: boolean;  // true if this creates a new branch, false if linear
+  strength: number;
+}
+
+export interface BranchTree {
+  nodes: BranchNode[];
+  links: BranchLink[];
+  root: string | null;
+  maxDepth: number;
+  branchCount: number;
+}
+
+export interface BranchVisualizationConfig {
+  showLabels: boolean;
+  showVersionNumbers: boolean;
+  colorByRole: boolean;
+  colorByProvider: boolean;
+  physicsEnabled: boolean;
+  gravityStrength: number;
+  linkDistance: number;
+  chargeStrength: number;
+  collisionRadius: number;
+}
