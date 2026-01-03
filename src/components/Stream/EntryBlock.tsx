@@ -1,4 +1,4 @@
-import { useCallback, useEffect } from 'react';
+import { useEffect, useMemo } from 'react';
 import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import Underline from '@tiptap/extension-underline';
@@ -60,17 +60,18 @@ export function EntryBlock({ entry }: EntryBlockProps) {
   const isUser = entry.role === 'user';
 
   // Debounced save function
-  const debouncedSave = useCallback(
-    debounce(async (content: unknown) => {
-      devLog.editorContent('Auto-save entry', entry.id);
-      devLog.apiCall('PATCH', 'update_entry_content', { entryId: entry.id });
-      try {
-        await api.updateEntryContent(entry.id, content as import('@tiptap/react').JSONContent);
-        devLog.apiSuccess('update_entry_content', { entryId: entry.id });
-      } catch (error) {
-        devLog.apiError('update_entry_content', error);
-      }
-    }, 500),
+  const debouncedSave = useMemo(
+    () =>
+      debounce(async (content: unknown) => {
+        devLog.editorContent('Auto-save entry', entry.id);
+        devLog.apiCall('PATCH', 'update_entry_content', { entryId: entry.id });
+        try {
+          await api.updateEntryContent(entry.id, content as import('@tiptap/react').JSONContent);
+          devLog.apiSuccess('update_entry_content', { entryId: entry.id });
+        } catch (error) {
+          devLog.apiError('update_entry_content', error);
+        }
+      }, 500),
     [entry.id]
   );
 

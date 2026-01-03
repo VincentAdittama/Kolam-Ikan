@@ -6,7 +6,7 @@
 }
 
 .ProseMirror p.is-editor-empty:first-child::before {
-  color: var(--muted-foreground);
+  color: var(--color-muted-foreground);
   content: attr(data-placeholder);
   float: left;
   height: 0;
@@ -15,7 +15,7 @@
 
 /* Code block styling */
 .ProseMirror pre {
-  background-color: hsl(var(--muted));
+  background-color: var(--color-muted);
   border-radius: 0.5rem;
   padding: 0.75rem 1rem;
   font-family: 'JetBrains Mono', 'Fira Code', monospace;
@@ -38,7 +38,7 @@
 
 .ProseMirror td,
 .ProseMirror th {
-  border: 1px solid hsl(var(--border));
+  border: 1px solid var(--color-border);
   box-sizing: border-box;
   min-width: 1em;
   padding: 0.5rem;
@@ -47,7 +47,7 @@
 }
 
 .ProseMirror th {
-  background-color: hsl(var(--muted));
+  background-color: var(--color-muted);
   font-weight: 600;
   text-align: left;
 }
@@ -74,15 +74,15 @@
 
 /* Blockquote styling */
 .ProseMirror blockquote {
-  border-left: 3px solid hsl(var(--border));
+  border-left: 3px solid var(--color-border);
   padding-left: 1rem;
   margin-left: 0;
-  color: hsl(var(--muted-foreground));
+  color: var(--color-muted-foreground);
 }
 
 /* Link styling */
 .ProseMirror a {
-  color: hsl(var(--primary));
+  color: var(--color-primary);
   cursor: pointer;
   text-decoration: underline;
 }
@@ -90,6 +90,85 @@
 /* Horizontal rule */
 .ProseMirror hr {
   border: none;
-  border-top: 1px solid hsl(var(--border));
+  border-top: 2px solid var(--color-border);
   margin: 1.5rem 0;
+  height: 0;
+  display: block;
+}
+
+/* Inline code styling */
+.ProseMirror code {
+  background-color: var(--color-muted);
+  border-radius: 0.25rem;
+  padding: 0.125rem 0.375rem;
+  font-family: 'JetBrains Mono', 'Fira Code', monospace;
+  font-size: 0.875em;
+}
+
+/* Bold and italic styling (ensure they work even without prose) */
+.ProseMirror strong {
+  font-weight: 600;
+}
+
+.ProseMirror em {
+  font-style: italic;
+}
+
+/* List styling */
+.ProseMirror ul {
+  list-style-type: disc;
+  padding-left: 1.25rem;
+}
+
+.ProseMirror ol {
+  list-style-type: decimal;
+  padding-left: 1.25rem;
+}
+
+.ProseMirror li {
+  margin: 0.25rem 0;
+}
+
+.ProseMirror li p {
+  margin: 0;
+}
+
+/* Heading styling */
+.ProseMirror h1 {
+  font-size: 1.75rem;
+  font-weight: 700;
+  margin-top: 1.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.ProseMirror h2 {
+  font-size: 1.5rem;
+  font-weight: 600;
+  margin-top: 1.25rem;
+  margin-bottom: 0.5rem;
+}
+
+.ProseMirror h3 {
+  font-size: 1.25rem;
+  font-weight: 600;
+  margin-top: 1rem;
+  margin-bottom: 0.5rem;
+}
+
+.ProseMirror h4,
+.ProseMirror h5,
+.ProseMirror h6 {
+  font-size: 1.125rem;
+  font-weight: 600;
+  margin-top: 0.75rem;
+  margin-bottom: 0.25rem;
+}
+
+/* Paragraph spacing */
+.ProseMirror p {
+  margin: 0.5rem 0;
+}
+
+.ProseMirror > *:first-child {
+  margin-top: 0;
 }

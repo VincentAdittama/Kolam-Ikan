@@ -1,4 +1,4 @@
-import React from 'react';
+import { useEffect, useState } from 'react';
 import type { Editor } from '@tiptap/react';
 import {
   Bold,
@@ -65,6 +65,23 @@ function ToolbarButton({ icon, label, shortcut, isActive, onClick }: ToolbarButt
 }
 
 export function EditorToolbar({ editor }: EditorToolbarProps) {
+  // Force re-render on editor selection/transaction changes
+  const [, setUpdateCount] = useState(0);
+
+  useEffect(() => {
+    const handleUpdate = () => {
+      setUpdateCount((c) => c + 1);
+    };
+
+    editor.on('selectionUpdate', handleUpdate);
+    editor.on('transaction', handleUpdate);
+
+    return () => {
+      editor.off('selectionUpdate', handleUpdate);
+      editor.off('transaction', handleUpdate);
+    };
+  }, [editor]);
+
   if (!editor) return null;
 
   return (
