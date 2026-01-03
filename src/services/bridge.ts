@@ -82,10 +82,10 @@ export async function generateBridgePrompt(
   // Format all staged entries
   const formattedEntries = entries.map(formatEntryForExport).join('\n\n');
 
-  // Build the prompt
-  const prompt =
-    directiveConfig.template.replace('{STAGED_BLOCKS}', formattedEntries) +
-    `\n\n<!-- bridge:${bridgeKey} -->`;
+  // Build the prompt - inject both staged blocks and bridge key
+  const prompt = directiveConfig.template
+    .replace('{STAGED_BLOCKS}', formattedEntries)
+    .replace(/{BRIDGE_KEY}/g, bridgeKey);
 
   // Calculate token estimate
   const tokenEstimate = estimateTokens(prompt);
@@ -101,24 +101,182 @@ export async function generateBridgePrompt(
 }
 
 /**
- * Parse and sanitize AI response from clipboard
+ * Structured response from AI parsed from kolam_response envelope
  */
-export function parseAIResponse(rawText: string): {
+export interface ParsedAIResponse {
   content: string;
   bridgeKey: string | null;
-} {
+  aiModel: string | null;
+  directive: DirectiveType | null;
+  summary: string | null;
+  metadata: Record<string, string[]>; // changes, references, sources, etc.
+  isStructured: boolean; // whether response was in proper kolam_response format
+  parseWarnings: string[]; // any issues encountered during parsing
+}
+
+/**
+ * Safely extract text between XML-like tags
+ * Handles edge cases like newlines, whitespace, and missing tags
+ */
+function safeExtractTag(text: string, tagName: string): string | null {
+  // Try multiple patterns from most specific to most lenient
+  const patterns = [
+    // Standard format: <tag>content</tag>
+    new RegExp(`<${tagName}>([\\s\\S]*?)<\\/${tagName}>`, 'i'),
+    // With attributes: <tag attr="val">content</tag>
+    new RegExp(`<${tagName}[^>]*>([\\s\\S]*?)<\\/${tagName}>`, 'i'),
+    // Self-closing or malformed: <tag>content (no closing)
+    new RegExp(`<${tagName}[^>]*>([\\s\\S]*?)(?=<[a-z_]+>|<\\/kolam_response>|$)`, 'i'),
+  ];
+
+  for (const pattern of patterns) {
+    const match = text.match(pattern);
+    if (match && match[1]) {
+      return match[1].trim();
+    }
+  }
+  return null;
+}
+
+/**
+ * Parse and sanitize AI response from clipboard
+ * Supports both legacy format (<!-- bridge:xxx -->) and new structured format
+ * Designed to be robust and handle malformed AI responses gracefully
+ */
+export function parseAIResponse(rawText: string): ParsedAIResponse {
   let content = rawText;
+  let bridgeKey: string | null = null;
+  let aiModel: string | null = null;
+  let directive: DirectiveType | null = null;
+  let summary: string | null = null;
+  const metadata: Record<string, string[]> = {};
+  let isStructured = false;
+  const parseWarnings: string[] = [];
 
-  // Extract bridge key using robust regex
-  const bridgePattern =
-    /(?:<|&lt;)!-{2}\s*bridge\s*:\s*([a-zA-Z0-9]+)\s*-{2}(?:>|&gt;)/i;
-  const match = content.match(bridgePattern);
-  const bridgeKey = match ? match[1].toLowerCase() : null;
+  // Try to parse new structured format first
+  // More lenient pattern - allows for whitespace variations and attribute order variations
+  const kolamPatterns = [
+    // Standard format
+    /<kolam_response\s+bridge="([a-zA-Z0-9]+)"\s+directive="([A-Z]+)"[^>]*>([\s\S]*?)<\/kolam_response>/i,
+    // Reversed attribute order
+    /<kolam_response\s+directive="([A-Z]+)"\s+bridge="([a-zA-Z0-9]+)"[^>]*>([\s\S]*?)<\/kolam_response>/i,
+    // Very lenient - just find the opening and closing tags
+    /<kolam_response[^>]*>([\s\S]*?)<\/kolam_response>/i,
+  ];
 
-  // Remove bridge key from content
-  content = content.replace(bridgePattern, '').trim();
+  let kolamMatch: RegExpMatchArray | null = null;
+  let patternIndex = 0;
 
-  // Remove common HTML artifacts
+  for (let i = 0; i < kolamPatterns.length; i++) {
+    kolamMatch = rawText.match(kolamPatterns[i]);
+    if (kolamMatch) {
+      patternIndex = i;
+      break;
+    }
+  }
+
+  if (kolamMatch) {
+    isStructured = true;
+    let innerContent: string;
+
+    if (patternIndex === 0) {
+      // Standard format
+      bridgeKey = kolamMatch[1]?.toLowerCase() || null;
+      directive = (kolamMatch[2]?.toUpperCase() as DirectiveType) || null;
+      innerContent = kolamMatch[3] || '';
+    } else if (patternIndex === 1) {
+      // Reversed attribute order
+      directive = (kolamMatch[1]?.toUpperCase() as DirectiveType) || null;
+      bridgeKey = kolamMatch[2]?.toLowerCase() || null;
+      innerContent = kolamMatch[3] || '';
+    } else {
+      // Very lenient - extract from attributes manually
+      innerContent = kolamMatch[1] || '';
+      
+      // Try to extract bridge and directive from opening tag
+      const openingTag = rawText.match(/<kolam_response([^>]*)>/i);
+      if (openingTag) {
+        const attrs = openingTag[1];
+        const bridgeMatch = attrs.match(/bridge="([a-zA-Z0-9]+)"/i);
+        const directiveMatch = attrs.match(/directive="([A-Z]+)"/i);
+        bridgeKey = bridgeMatch ? bridgeMatch[1].toLowerCase() : null;
+        directive = directiveMatch ? (directiveMatch[1].toUpperCase() as DirectiveType) : null;
+      }
+      parseWarnings.push('Used lenient parsing for kolam_response tag');
+    }
+
+    // Extract AI model - be lenient
+    aiModel = safeExtractTag(innerContent, 'ai_model');
+    if (!aiModel) {
+      parseWarnings.push('Could not extract ai_model');
+    }
+
+    // Extract summary - be lenient
+    summary = safeExtractTag(innerContent, 'summary');
+    if (!summary) {
+      parseWarnings.push('Could not extract summary');
+    }
+
+    // Extract main content - this is critical, try multiple approaches
+    const extractedContent = safeExtractTag(innerContent, 'content');
+    if (extractedContent) {
+      content = extractedContent;
+    } else {
+      // Fallback: try to find content between </summary> and <changes> or end
+      const fallbackMatch = innerContent.match(/<\/summary>([\s\S]*?)(?:<changes>|<\/kolam_response>|$)/i);
+      if (fallbackMatch && fallbackMatch[1]?.trim()) {
+        content = fallbackMatch[1].trim();
+        // Remove any stray content tags
+        content = content.replace(/<\/?content>/gi, '').trim();
+        parseWarnings.push('Used fallback content extraction');
+      } else {
+        // Last resort: use everything after summary, stripping known tags
+        content = innerContent
+          .replace(/<ai_model>[\s\S]*?<\/ai_model>/gi, '')
+          .replace(/<summary>[\s\S]*?<\/summary>/gi, '')
+          .replace(/<changes>[\s\S]*?<\/changes>/gi, '')
+          .replace(/<references>[\s\S]*?<\/references>/gi, '')
+          .replace(/<sources>[\s\S]*?<\/sources>/gi, '')
+          .replace(/<\/?content>/gi, '')
+          .trim();
+        parseWarnings.push('Used last-resort content extraction');
+      }
+    }
+
+    // Extract optional metadata sections (changes, references, sources)
+    const metaSections = ['changes', 'references', 'sources'];
+    for (const section of metaSections) {
+      const sectionContent = safeExtractTag(innerContent, section);
+      if (sectionContent) {
+        // Parse as list items (lines starting with - or *)
+        const items = sectionContent
+          .split('\n')
+          .map(line => line.trim())
+          .filter(line => line.startsWith('-') || line.startsWith('*'))
+          .map(line => line.substring(1).trim())
+          .filter(item => item.length > 0);
+        if (items.length > 0) {
+          metadata[section] = items;
+        }
+      }
+    }
+  } else {
+    // Fallback to legacy format: <!-- bridge:xxx -->
+    const bridgePattern =
+      /(?:<|&lt;)!-{2}\s*bridge\s*:\s*([a-zA-Z0-9]+)\s*-{2}(?:>|&gt;)/i;
+    const match = content.match(bridgePattern);
+    bridgeKey = match ? match[1].toLowerCase() : null;
+
+    // Remove bridge key from content
+    content = content.replace(bridgePattern, '').trim();
+    
+    // Also try to detect if this looks like a kolam_response that failed to parse
+    if (rawText.includes('<kolam_response') || rawText.includes('kolam_response>')) {
+      parseWarnings.push('Detected kolam_response tags but failed to parse - using legacy fallback');
+    }
+  }
+
+  // Clean up HTML artifacts regardless of format
   content = content
     .replace(/<div[^>]*>/gi, '')
     .replace(/<\/div>/gi, '\n')
@@ -130,16 +288,18 @@ export function parseAIResponse(rawText: string): {
     .replace(/style="[^"]*"/gi, '')
     .replace(/class="[^"]*"/gi, '');
 
-  // Remove AI boilerplate patterns
-  const boilerplatePatterns = [
-    /^Here's my analysis:\s*/i,
-    /^Based on the context you provided[,.]?\s*/i,
-    /^I apologize, but\s*/i,
-    /^Let me analyze this[.:]?\s*/i,
-  ];
+  // Remove AI boilerplate patterns (only for unstructured responses)
+  if (!isStructured) {
+    const boilerplatePatterns = [
+      /^Here's my analysis:\s*/i,
+      /^Based on the context you provided[,.]?\s*/i,
+      /^I apologize, but\s*/i,
+      /^Let me analyze this[.:]?\s*/i,
+    ];
 
-  for (const pattern of boilerplatePatterns) {
-    content = content.replace(pattern, '');
+    for (const pattern of boilerplatePatterns) {
+      content = content.replace(pattern, '');
+    }
   }
 
   // Normalize whitespace
@@ -147,7 +307,18 @@ export function parseAIResponse(rawText: string): {
     .replace(/\n{3,}/g, '\n\n')
     .replace(/^\s+|\s+$/g, '');
 
-  return { content, bridgeKey };
+  // Final safety check - ensure we have some content
+  if (!content || content.length === 0) {
+    content = rawText;
+    parseWarnings.push('Content extraction failed completely - using raw text');
+  }
+
+  // Log warnings for debugging
+  if (parseWarnings.length > 0) {
+    console.warn('[Bridge Parser] Warnings:', parseWarnings);
+  }
+
+  return { content, bridgeKey, aiModel, directive, summary, metadata, isStructured, parseWarnings };
 }
 
 /**

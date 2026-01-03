@@ -126,7 +126,7 @@ pub fn get_stream_details(
     let mut stmt = conn
         .prepare(
             "SELECT id, stream_id, role, content, sequence_id, version_head, is_staged, 
-                    parent_context_ids, created_at, updated_at 
+                    parent_context_ids, ai_metadata, created_at, updated_at 
              FROM entries 
              WHERE stream_id = ?1 
              ORDER BY sequence_id ASC",
@@ -140,6 +140,9 @@ pub fn get_stream_details(
             let parent_ids_str: Option<String> = row.get(7)?;
             let parent_context_ids: Option<Vec<String>> = parent_ids_str
                 .and_then(|s| serde_json::from_str(&s).ok());
+            let ai_metadata_str: Option<String> = row.get(8)?;
+            let ai_metadata: Option<AiMetadata> = ai_metadata_str
+                .and_then(|s| serde_json::from_str(&s).ok());
 
             Ok(Entry {
                 id: row.get(0)?,
@@ -150,8 +153,9 @@ pub fn get_stream_details(
                 version_head: row.get(5)?,
                 is_staged: row.get::<_, i32>(6)? != 0,
                 parent_context_ids,
-                created_at: row.get(8)?,
-                updated_at: row.get(9)?,
+                ai_metadata,
+                created_at: row.get(9)?,
+                updated_at: row.get(10)?,
             })
         })
         .map_err(|e| e.to_string())?
@@ -230,11 +234,15 @@ pub fn create_entry(db: State<Database>, input: CreateEntryInput) -> Result<Entr
 
     let sequence_id = max_seq + 1;
     let content_str = serde_json::to_string(&input.content).map_err(|e| e.to_string())?;
+    let ai_metadata_str = input.ai_metadata.as_ref()
+        .map(|m| serde_json::to_string(m))
+        .transpose()
+        .map_err(|e| e.to_string())?;
 
     conn.execute(
-        "INSERT INTO entries (id, stream_id, role, content, sequence_id, version_head, is_staged, created_at, updated_at) 
-         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)",
-        params![id, input.stream_id, input.role, content_str, sequence_id, 0, 0, now, now],
+        "INSERT INTO entries (id, stream_id, role, content, sequence_id, version_head, is_staged, ai_metadata, created_at, updated_at) 
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)",
+        params![id, input.stream_id, input.role, content_str, sequence_id, 0, 0, ai_metadata_str, now, now],
     )
     .map_err(|e| e.to_string())?;
 
@@ -254,6 +262,7 @@ pub fn create_entry(db: State<Database>, input: CreateEntryInput) -> Result<Entr
         version_head: 0,
         is_staged: false,
         parent_context_ids: None,
+        ai_metadata: input.ai_metadata,
         created_at: now,
         updated_at: now,
     })
@@ -320,7 +329,7 @@ pub fn get_staged_entries(db: State<Database>, stream_id: String) -> Result<Vec<
     let mut stmt = conn
         .prepare(
             "SELECT id, stream_id, role, content, sequence_id, version_head, is_staged, 
-                    parent_context_ids, created_at, updated_at 
+                    parent_context_ids, ai_metadata, created_at, updated_at 
              FROM entries 
              WHERE stream_id = ?1 AND is_staged = 1
              ORDER BY sequence_id ASC",
@@ -334,6 +343,9 @@ pub fn get_staged_entries(db: State<Database>, stream_id: String) -> Result<Vec<
             let parent_ids_str: Option<String> = row.get(7)?;
             let parent_context_ids: Option<Vec<String>> = parent_ids_str
                 .and_then(|s| serde_json::from_str(&s).ok());
+            let ai_metadata_str: Option<String> = row.get(8)?;
+            let ai_metadata: Option<AiMetadata> = ai_metadata_str
+                .and_then(|s| serde_json::from_str(&s).ok());
 
             Ok(Entry {
                 id: row.get(0)?,
@@ -344,8 +356,9 @@ pub fn get_staged_entries(db: State<Database>, stream_id: String) -> Result<Vec<
                 version_head: row.get(5)?,
                 is_staged: true,
                 parent_context_ids,
-                created_at: row.get(8)?,
-                updated_at: row.get(9)?,
+                ai_metadata,
+                created_at: row.get(9)?,
+                updated_at: row.get(10)?,
             })
         })
         .map_err(|e| e.to_string())?
@@ -611,7 +624,7 @@ pub fn search_entries(db: State<Database>, query: String) -> Result<Vec<Entry>, 
     let mut stmt = conn
         .prepare(
             "SELECT id, stream_id, role, content, sequence_id, version_head, is_staged, 
-                    parent_context_ids, created_at, updated_at 
+                    parent_context_ids, ai_metadata, created_at, updated_at 
              FROM entries 
              WHERE content LIKE ?1
              ORDER BY updated_at DESC
@@ -626,6 +639,9 @@ pub fn search_entries(db: State<Database>, query: String) -> Result<Vec<Entry>, 
             let parent_ids_str: Option<String> = row.get(7)?;
             let parent_context_ids: Option<Vec<String>> = parent_ids_str
                 .and_then(|s| serde_json::from_str(&s).ok());
+            let ai_metadata_str: Option<String> = row.get(8)?;
+            let ai_metadata: Option<AiMetadata> = ai_metadata_str
+                .and_then(|s| serde_json::from_str(&s).ok());
 
             Ok(Entry {
                 id: row.get(0)?,
@@ -636,8 +652,9 @@ pub fn search_entries(db: State<Database>, query: String) -> Result<Vec<Entry>, 
                 version_head: row.get(5)?,
                 is_staged: row.get::<_, i32>(6)? != 0,
                 parent_context_ids,
-                created_at: row.get(8)?,
-                updated_at: row.get(9)?,
+                ai_metadata,
+                created_at: row.get(9)?,
+                updated_at: row.get(10)?,
             })
         })
         .map_err(|e| e.to_string())?

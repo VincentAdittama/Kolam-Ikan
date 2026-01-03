@@ -27,6 +27,16 @@ pub struct StreamMetadata {
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
+pub struct AiMetadata {
+    pub model: String,
+    pub provider: String,
+    pub directive: String,
+    pub bridge_key: String,
+    pub summary: Option<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
 pub struct Entry {
     pub id: String,
     pub stream_id: String,
@@ -36,6 +46,7 @@ pub struct Entry {
     pub version_head: i32,
     pub is_staged: bool,
     pub parent_context_ids: Option<Vec<String>>,
+    pub ai_metadata: Option<AiMetadata>,
     pub created_at: i64,
     pub updated_at: i64,
 }
@@ -89,6 +100,7 @@ pub struct CreateEntryInput {
     pub stream_id: String,
     pub role: String,
     pub content: serde_json::Value,
+    pub ai_metadata: Option<AiMetadata>,
 }
 
 #[allow(dead_code)]

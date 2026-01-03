@@ -20,6 +20,7 @@ import {
   Trash2,
   GitCommit,
   Link as LinkIcon,
+  Sparkles,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -39,6 +40,7 @@ import { cn, formatEntryTime, debounce } from '@/lib/utils';
 import { devLog } from '@/lib/devLogger';
 import { useAppStore } from '@/store/appStore';
 import type { Entry } from '@/types';
+import { getAIProviderIcon, getAIProviderColor } from '@/types';
 import * as api from '@/services/api';
 import { EditorToolbar } from './EditorToolbar';
 
@@ -198,23 +200,75 @@ export function EntryBlock({ entry }: EntryBlockProps) {
           )}
 
           {/* Avatar */}
-          <div
-            className={cn(
-              'flex h-8 w-8 items-center justify-center rounded-full',
-              isUser ? 'bg-primary text-primary-foreground' : 'bg-secondary'
-            )}
-          >
-            {isUser ? (
+          {isUser ? (
+            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary text-primary-foreground">
               <User className="h-4 w-4" />
-            ) : (
-              <Bot className="h-4 w-4" />
-            )}
-          </div>
+            </div>
+          ) : (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <div 
+                  className="flex h-8 w-8 items-center justify-center rounded-full bg-secondary overflow-hidden"
+                  style={entry.aiMetadata ? { 
+                    backgroundColor: `${getAIProviderColor(entry.aiMetadata.provider)}15`,
+                    border: `1.5px solid ${getAIProviderColor(entry.aiMetadata.provider)}40`
+                  } : undefined}
+                >
+                  {entry.aiMetadata ? (
+                    <img 
+                      src={getAIProviderIcon(entry.aiMetadata.provider)} 
+                      alt={entry.aiMetadata.provider}
+                      className="h-4 w-4"
+                      style={{ filter: 'none' }}
+                    />
+                  ) : (
+                    <Bot className="h-4 w-4" />
+                  )}
+                </div>
+              </TooltipTrigger>
+              {entry.aiMetadata && (
+                <TooltipContent side="right" className="max-w-xs">
+                  <div className="flex flex-col gap-1">
+                    <div className="flex items-center gap-2">
+                      <Sparkles className="h-3 w-3" style={{ color: getAIProviderColor(entry.aiMetadata.provider) }} />
+                      <span className="font-medium">{entry.aiMetadata.model}</span>
+                    </div>
+                    <span className="text-xs text-muted-foreground">
+                      Directive: {entry.aiMetadata.directive}
+                    </span>
+                    {entry.aiMetadata.summary && (
+                      <span className="text-xs text-muted-foreground italic">
+                        "{entry.aiMetadata.summary}"
+                      </span>
+                    )}
+                  </div>
+                </TooltipContent>
+              )}
+            </Tooltip>
+          )}
 
           {/* Sequence ID */}
           <span className="text-sm font-medium text-muted-foreground">
             #{entry.sequenceId}
           </span>
+
+          {/* AI Model badge (for AI entries with metadata) */}
+          {!isUser && entry.aiMetadata && (
+            <span 
+              className="inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-xs font-medium"
+              style={{ 
+                backgroundColor: `${getAIProviderColor(entry.aiMetadata.provider)}15`,
+                color: getAIProviderColor(entry.aiMetadata.provider),
+              }}
+            >
+              <img 
+                src={getAIProviderIcon(entry.aiMetadata.provider)} 
+                alt={entry.aiMetadata.provider}
+                className="h-3 w-3"
+              />
+              {entry.aiMetadata.model}
+            </span>
+          )}
 
           {/* Timestamp */}
           <span className="text-xs text-muted-foreground">

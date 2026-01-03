@@ -5,6 +5,12 @@
 import type { JSONContent } from '@tiptap/react';
 
 // ============================================================
+// AI PROVIDER TYPES (declared early for use in Entry)
+// ============================================================
+
+export type AIProvider = 'openai' | 'anthropic' | 'google' | 'meta' | 'mistral' | 'xai' | 'other';
+
+// ============================================================
 // STREAM TYPES
 // ============================================================
 
@@ -42,6 +48,14 @@ export interface CreateStreamInput {
 
 export type EntryRole = 'user' | 'ai';
 
+export interface AiMetadata {
+  model: string;           // e.g., "Claude 3.5 Sonnet"
+  provider: AIProvider;    // e.g., "anthropic"
+  directive: DirectiveType; // which directive generated this
+  bridgeKey: string;       // link back to the prompt
+  summary?: string;        // AI's summary of what it did
+}
+
 export interface Entry {
   id: string;
   streamId: string;
@@ -53,6 +67,8 @@ export interface Entry {
   parentContextIds: string[] | null;
   createdAt: number;
   updatedAt: number;
+  // AI-generated entry metadata (only for role === 'ai')
+  aiMetadata?: AiMetadata;
 }
 
 export interface EntryNode extends Entry {
@@ -64,6 +80,7 @@ export interface CreateEntryInput {
   streamId: string;
   role: EntryRole;
   content: JSONContent;
+  aiMetadata?: AiMetadata;
 }
 
 export interface UpdateEntryContentInput {
@@ -148,13 +165,29 @@ Focus on:
 - Clarifying ambiguous points
 - Suggesting better organization (headings, lists, groupings)
 - Preserving all original information (do not omit important details)
-
-Provide your refactored version with a brief explanation of major changes.
 </directive>
 
 <context>
 {STAGED_BLOCKS}
-</context>`,
+</context>
+
+<output_format>
+You MUST wrap your entire response in the following structure:
+
+<kolam_response bridge="{BRIDGE_KEY}" directive="DUMP">
+<ai_model>YOUR_MODEL_NAME (e.g., Claude 3.5 Sonnet, GPT-4, Gemini Pro)</ai_model>
+<summary>One-sentence summary of what you did</summary>
+<content>
+[Your refactored content here in Markdown format]
+</content>
+<changes>
+- [Brief explanation of major change 1]
+- [Brief explanation of major change 2]
+</changes>
+</kolam_response>
+
+This structured format is REQUIRED for the application to process your response correctly.
+</output_format>`,
   },
   CRITIQUE: {
     type: 'CRITIQUE',
@@ -178,7 +211,24 @@ Be constructive and specific. Cite which parts you're referencing.
 
 <context>
 {STAGED_BLOCKS}
-</context>`,
+</context>
+
+<output_format>
+You MUST wrap your entire response in the following structure:
+
+<kolam_response bridge="{BRIDGE_KEY}" directive="CRITIQUE">
+<ai_model>YOUR_MODEL_NAME (e.g., Claude 3.5 Sonnet, GPT-4, Gemini Pro)</ai_model>
+<summary>One-sentence summary of your critique</summary>
+<content>
+[Your critique content here in Markdown format, following the structure above]
+</content>
+<references>
+- entry_id: [ID of entry referenced] | point: [What you referenced]
+</references>
+</kolam_response>
+
+This structured format is REQUIRED for the application to process your response correctly.
+</output_format>`,
   },
   GENERATE: {
     type: 'GENERATE',
@@ -196,13 +246,28 @@ Guidelines:
 - Explore implications or applications
 - Suggest related concepts or connections
 - Clearly mark speculative ideas vs. extensions of stated facts
-
-Format your additions in a way that integrates naturally with the existing notes.
 </directive>
 
 <context>
 {STAGED_BLOCKS}
-</context>`,
+</context>
+
+<output_format>
+You MUST wrap your entire response in the following structure:
+
+<kolam_response bridge="{BRIDGE_KEY}" directive="GENERATE">
+<ai_model>YOUR_MODEL_NAME (e.g., Claude 3.5 Sonnet, GPT-4, Gemini Pro)</ai_model>
+<summary>One-sentence summary of what you generated</summary>
+<content>
+[Your generated content here in Markdown format]
+</content>
+<sources>
+- entry_id: [ID of entry this builds upon] | aspect: [What aspect you expanded]
+</sources>
+</kolam_response>
+
+This structured format is REQUIRED for the application to process your response correctly.
+</output_format>`,
   },
 };
 
@@ -233,6 +298,116 @@ export interface PendingBlock {
   stagedContextIds: string[];
   directive: DirectiveType;
   createdAt: number;
+}
+
+// ============================================================
+// AI PROVIDER UTILITIES
+// ============================================================
+
+export interface AIModelInfo {
+  provider: AIProvider;
+  modelName: string;
+  displayName: string;
+}
+
+/**
+ * Parse AI model string to provider info
+ * e.g., "Claude 3.5 Sonnet" → { provider: 'anthropic', modelName: 'claude-3.5-sonnet', displayName: 'Claude 3.5 Sonnet' }
+ */
+export function parseAIModelString(modelString: string): AIModelInfo {
+  const lower = modelString.toLowerCase();
+  
+  // Anthropic models
+  if (lower.includes('claude')) {
+    return {
+      provider: 'anthropic',
+      modelName: lower.replace(/\s+/g, '-'),
+      displayName: modelString,
+    };
+  }
+  
+  // OpenAI models
+  if (lower.includes('gpt') || lower.includes('openai') || lower.includes('o1') || lower.includes('o3')) {
+    return {
+      provider: 'openai',
+      modelName: lower.replace(/\s+/g, '-'),
+      displayName: modelString,
+    };
+  }
+  
+  // Google models
+  if (lower.includes('gemini') || lower.includes('palm') || lower.includes('bard')) {
+    return {
+      provider: 'google',
+      modelName: lower.replace(/\s+/g, '-'),
+      displayName: modelString,
+    };
+  }
+  
+  // Meta models
+  if (lower.includes('llama') || lower.includes('meta')) {
+    return {
+      provider: 'meta',
+      modelName: lower.replace(/\s+/g, '-'),
+      displayName: modelString,
+    };
+  }
+  
+  // Mistral models
+  if (lower.includes('mistral') || lower.includes('mixtral')) {
+    return {
+      provider: 'mistral',
+      modelName: lower.replace(/\s+/g, '-'),
+      displayName: modelString,
+    };
+  }
+  
+  // xAI models (Grok)
+  if (lower.includes('grok') || lower.includes('xai')) {
+    return {
+      provider: 'xai',
+      modelName: lower.replace(/\s+/g, '-'),
+      displayName: modelString,
+    };
+  }
+  
+  return {
+    provider: 'other',
+    modelName: lower.replace(/\s+/g, '-'),
+    displayName: modelString,
+  };
+}
+
+/**
+ * Get avatar/icon path for AI provider
+ */
+export function getAIProviderIcon(provider: AIProvider): string {
+  const icons: Record<AIProvider, string> = {
+    anthropic: '/icons/ai/anthropic.svg',
+    openai: '/icons/ai/openai.svg',
+    google: '/icons/ai/google.svg',
+    meta: '/icons/ai/meta.svg',
+    mistral: '/icons/ai/mistral.svg',
+    xai: '/icons/ai/grok.svg',
+    other: '/icons/ai/generic.svg',
+  };
+  return icons[provider];
+}
+
+/**
+ * Get brand color for AI provider
+ */
+export function getAIProviderColor(provider: AIProvider): string {
+  const colors: Record<AIProvider, string> = {
+    anthropic: '#D97757',  // Anthropic orange
+    openai: '#10A37F',     // OpenAI green
+    google: '#4285F4',     // Google blue
+    meta: '#0668E1',       // Meta blue
+    mistral: '#F7931A',    // Mistral orange
+    xai: '#000000',        // xAI/Grok black
+    other: '#6B7280',      // Gray
+  };
+  return colors[provider];
 }
 
 // ============================================================

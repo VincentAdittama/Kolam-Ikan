@@ -27,7 +27,7 @@ import {
 import { cn, estimateTokens, formatTokenCount, getTokenStatus } from '@/lib/utils';
 import { devLog } from '@/lib/devLogger';
 import { useAppStore } from '@/store/appStore';
-import { MODEL_CONFIGS, type DirectiveType, type ModelType } from '@/types';
+import { MODEL_CONFIGS, type DirectiveType, type ModelType, type AiMetadata, parseAIModelString } from '@/types';
 import { generateBridgePrompt, parseAIResponse, contentToProseMirror } from '@/services/bridge';
 import * as api from '@/services/api';
 
@@ -150,31 +150,70 @@ export function RightPanel() {
         return;
       }
 
-      // Parse the response
+      // Parse the response (now includes AI metadata)
       devLog.action('Parsing AI response', { textLength: clipboardText.length });
-      const { content, bridgeKey } = parseAIResponse(clipboardText);
+      const parsedResponse = parseAIResponse(clipboardText);
+      const { content, bridgeKey, aiModel, directive, summary, isStructured, parseWarnings } = parsedResponse;
 
-      // Validate bridge key
+      devLog.action('Parsed response', { 
+        bridgeKey, 
+        aiModel, 
+        directive, 
+        isStructured,
+        hasContent: !!content,
+        parseWarnings,
+      });
+
+      // Log warnings but continue
+      if (parseWarnings && parseWarnings.length > 0) {
+        console.warn('[Bridge Import] Parse warnings:', parseWarnings);
+      }
+
+      // Validate bridge key - be lenient
       if (!bridgeKey) {
         // Show warning but allow import
         devLog.error('Bridge key warning', 'No bridge key detected in response');
-        console.warn('No bridge key detected');
+        console.warn('No bridge key detected - proceeding anyway');
       } else if (bridgeKey !== pendingBlock.bridgeKey) {
+        // Log mismatch but still allow import with warning
         devLog.error('Bridge key mismatch', { expected: pendingBlock.bridgeKey, found: bridgeKey });
-        setExportError(`Bridge key mismatch. Expected: ${pendingBlock.bridgeKey}, Found: ${bridgeKey}`);
+        console.warn(`Bridge key mismatch: expected ${pendingBlock.bridgeKey}, got ${bridgeKey} - proceeding anyway`);
+        // Don't return - allow the import to proceed
+      }
+
+      // Safety check - ensure we have content
+      if (!content || content.trim().length === 0) {
+        setExportError('Failed to extract content from AI response. Please check the response format.');
         return;
       }
 
       // Convert to ProseMirror JSON
       const prosemirrorContent = contentToProseMirror(content);
 
-      // Create AI entry
+      // Build AI metadata - be lenient with missing fields
+      const effectiveModel = aiModel || 'Unknown AI';
+      const modelInfo = parseAIModelString(effectiveModel);
+      const aiMetadata: AiMetadata = {
+        model: modelInfo.displayName,
+        provider: modelInfo.provider,
+        directive: directive || pendingBlock.directive,
+        bridgeKey: bridgeKey || pendingBlock.bridgeKey,
+        summary: summary || undefined,
+      };
+      devLog.action('Built AI metadata', { 
+        model: aiMetadata.model, 
+        provider: aiMetadata.provider,
+        directive: aiMetadata.directive,
+      });
+
+      // Create AI entry with metadata
       devLog.createEntry(activeStreamId, 'ai');
-      devLog.apiCall('POST', 'create_entry', { streamId: activeStreamId, role: 'ai' });
+      devLog.apiCall('POST', 'create_entry', { streamId: activeStreamId, role: 'ai', hasMetadata: !!aiMetadata });
       const newEntry = await api.createEntry({
         streamId: activeStreamId,
         role: 'ai',
         content: prosemirrorContent,
+        aiMetadata,
       });
 
       devLog.apiSuccess('create_entry', { entryId: newEntry.id, sequenceId: newEntry.sequenceId });
@@ -191,7 +230,8 @@ export function RightPanel() {
     } catch (error) {
       devLog.apiError('bridge_import', error);
       devLog.bridgeImport(pendingBlock?.bridgeKey || 'unknown', false);
-      setExportError(`Failed to import: ${error}`);
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      setExportError(`Failed to import: ${errorMessage}`);
     } finally {
       setIsImporting(false);
     }

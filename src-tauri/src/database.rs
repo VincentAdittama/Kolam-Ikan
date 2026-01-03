@@ -46,6 +46,7 @@ impl Database {
                 version_head INTEGER DEFAULT 0,
                 is_staged INTEGER DEFAULT 0,
                 parent_context_ids TEXT,
+                ai_metadata TEXT,
                 created_at INTEGER NOT NULL,
                 updated_at INTEGER NOT NULL,
                 FOREIGN KEY(stream_id) REFERENCES streams(id) ON DELETE CASCADE
