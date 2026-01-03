@@ -61,7 +61,7 @@ interface AppState {
   setLoadingEntries: (loading: boolean) => void;
 }
 
-export const useAppStore = create<AppState>((set, get) => ({
+export const useAppStore = create<AppState>((set, _get) => ({
   // Initial UI State
   activeStreamId: null,
   selectedDirective: 'DUMP',

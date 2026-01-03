@@ -1,7 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import * as api from '@/services/api';
 import { useAppStore } from '@/store/appStore';
-import type { CreateStreamInput, CreateEntryInput, DirectiveType } from '@/types';
+import type { CreateStreamInput, CreateEntryInput } from '@/types';
 import type { JSONContent } from '@tiptap/react';
 
 // ============================================================

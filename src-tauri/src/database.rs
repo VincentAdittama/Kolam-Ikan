@@ -1,7 +1,6 @@
 use rusqlite::{Connection, Result, params};
 use std::path::PathBuf;
 use std::sync::Mutex;
-use tauri::Manager;
 
 pub struct Database {
     pub conn: Mutex<Connection>,

@@ -47,6 +47,7 @@ pub struct EntryVersion {
     pub committed_at: i64,
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Spotlight {
     pub id: String,
@@ -82,6 +83,7 @@ pub struct CreateEntryInput {
     pub content: serde_json::Value,
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Serialize, Deserialize)]
 pub struct UpdateEntryContentInput {
     pub entry_id: String,
@@ -94,6 +96,7 @@ pub struct StreamWithEntries {
     pub entries: Vec<Entry>,
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Serialize, Deserialize)]
 pub struct AppError {
     pub code: String,
@@ -101,6 +104,7 @@ pub struct AppError {
     pub details: Option<String>,
 }
 
+#[allow(dead_code)]
 impl AppError {
     pub fn new(code: &str, message: &str) -> Self {
         Self {

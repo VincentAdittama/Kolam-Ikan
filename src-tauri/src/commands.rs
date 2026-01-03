@@ -15,7 +15,8 @@ pub fn create_stream(
     let conn = db.conn.lock().map_err(|e| e.to_string())?;
     let now = chrono::Utc::now().timestamp_millis();
     let id = uuid::Uuid::new_v4().to_string();
-    let tags_json = serde_json::to_string(&input.tags.unwrap_or_default())
+    let tags = input.tags.unwrap_or_default();
+    let tags_json = serde_json::to_string(&tags)
         .map_err(|e| e.to_string())?;
 
     conn.execute(
@@ -38,7 +39,7 @@ pub fn create_stream(
         id,
         title: input.title,
         description: input.description,
-        tags: input.tags.unwrap_or_default(),
+        tags,
         color: input.color,
         pinned: false,
         created_at: now,
