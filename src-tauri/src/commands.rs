@@ -468,6 +468,74 @@ pub fn get_entry_versions(db: State<Database>, entry_id: String) -> Result<Vec<E
 }
 
 #[tauri::command]
+pub fn get_latest_version(db: State<Database>, entry_id: String) -> Result<Option<EntryVersion>, String> {
+    let conn = db.conn.lock().map_err(|e| e.to_string())?;
+
+    let result = conn.query_row(
+        "SELECT id, entry_id, version_number, content_snapshot, commit_message, committed_at 
+         FROM entry_versions 
+         WHERE entry_id = ?1 
+         ORDER BY version_number DESC 
+         LIMIT 1",
+        params![entry_id],
+        |row| {
+            let content_str: String = row.get(3)?;
+            let content: serde_json::Value = serde_json::from_str(&content_str).unwrap_or_default();
+
+            Ok(EntryVersion {
+                id: row.get(0)?,
+                entry_id: row.get(1)?,
+                version_number: row.get(2)?,
+                content_snapshot: content,
+                commit_message: row.get(4)?,
+                committed_at: row.get(5)?,
+            })
+        },
+    );
+
+    match result {
+        Ok(version) => Ok(Some(version)),
+        Err(rusqlite::Error::QueryReturnedNoRows) => Ok(None),
+        Err(e) => Err(e.to_string()),
+    }
+}
+
+#[tauri::command]
+pub fn get_version_by_number(
+    db: State<Database>,
+    entry_id: String,
+    version_number: i32,
+) -> Result<Option<EntryVersion>, String> {
+    let conn = db.conn.lock().map_err(|e| e.to_string())?;
+
+    let result = conn.query_row(
+        "SELECT id, entry_id, version_number, content_snapshot, commit_message, committed_at 
+         FROM entry_versions 
+         WHERE entry_id = ?1 AND version_number = ?2",
+        params![entry_id, version_number],
+        |row| {
+            let content_str: String = row.get(3)?;
+            let content: serde_json::Value = serde_json::from_str(&content_str).unwrap_or_default();
+
+            Ok(EntryVersion {
+                id: row.get(0)?,
+                entry_id: row.get(1)?,
+                version_number: row.get(2)?,
+                content_snapshot: content,
+                commit_message: row.get(4)?,
+                committed_at: row.get(5)?,
+            })
+        },
+    );
+
+    match result {
+        Ok(version) => Ok(Some(version)),
+        Err(rusqlite::Error::QueryReturnedNoRows) => Ok(None),
+        Err(e) => Err(e.to_string()),
+    }
+}
+
+#[tauri::command]
 pub fn revert_to_version(
     db: State<Database>,
     entry_id: String,

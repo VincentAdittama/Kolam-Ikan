@@ -118,6 +118,17 @@ export async function getEntryVersions(entryId: string): Promise<EntryVersion[]>
   return invokeWithLogging('get_entry_versions', { entryId });
 }
 
+export async function getLatestVersion(entryId: string): Promise<EntryVersion | null> {
+  return invokeWithLogging('get_latest_version', { entryId });
+}
+
+export async function getVersionByNumber(
+  entryId: string,
+  versionNumber: number
+): Promise<EntryVersion | null> {
+  return invokeWithLogging('get_version_by_number', { entryId, versionNumber });
+}
+
 export async function revertToVersion(
   entryId: string,
   versionNumber: number

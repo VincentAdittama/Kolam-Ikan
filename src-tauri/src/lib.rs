@@ -54,6 +54,8 @@ pub fn run() {
             // Version commands
             commands::commit_entry_version,
             commands::get_entry_versions,
+            commands::get_latest_version,
+            commands::get_version_by_number,
             commands::revert_to_version,
             // Bridge commands
             commands::generate_bridge_key,

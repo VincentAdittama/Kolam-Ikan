@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import Underline from '@tiptap/extension-underline';
@@ -21,6 +21,7 @@ import {
   GitCommit,
   Link as LinkIcon,
   Sparkles,
+  FileDiff,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -39,15 +40,38 @@ import {
 import { cn, formatEntryTime, debounce } from '@/lib/utils';
 import { devLog } from '@/lib/devLogger';
 import { useAppStore } from '@/store/appStore';
+import { useLatestVersion } from '@/hooks/useQueries';
 import type { Entry } from '@/types';
+import type { JSONContent } from '@tiptap/react';
 import { getAIProviderIcon, getAIProviderColor } from '@/types';
 import * as api from '@/services/api';
 import { EditorToolbar } from './EditorToolbar';
+import { VersionHistoryDialog } from './VersionHistoryDialog';
+import { CommitDialog } from './CommitDialog';
 
 const lowlight = createLowlight(common);
 
 interface EntryBlockProps {
   entry: Entry;
+}
+
+// Simple text extraction from JSON content for comparison
+function extractTextFromContent(content: JSONContent): string {
+  const lines: string[] = [];
+  
+  function traverse(node: JSONContent) {
+    if (node.text) {
+      lines.push(node.text);
+    }
+    if (node.content) {
+      for (const child of node.content) {
+        traverse(child);
+      }
+    }
+  }
+  
+  traverse(content);
+  return lines.join('\n');
 }
 
 export function EntryBlock({ entry }: EntryBlockProps) {
@@ -58,8 +82,25 @@ export function EntryBlock({ entry }: EntryBlockProps) {
     removeEntry,
   } = useAppStore();
 
+  const [showVersionHistory, setShowVersionHistory] = useState(false);
+  const [showCommitDialog, setShowCommitDialog] = useState(false);
+  
+  // Fetch latest version to check for uncommitted changes
+  const { data: latestVersion } = useLatestVersion(entry.id);
+
   const isStaged = stagedEntryIds.has(entry.id);
   const isUser = entry.role === 'user';
+  
+  // Check if there are uncommitted changes
+  const hasUncommittedChanges = useMemo(() => {
+    if (!latestVersion) {
+      // No versions exist yet - any content is uncommitted
+      return entry.versionHead === 0;
+    }
+    const currentText = extractTextFromContent(entry.content);
+    const latestText = extractTextFromContent(latestVersion.contentSnapshot);
+    return currentText !== latestText;
+  }, [latestVersion, entry.content, entry.versionHead]);
 
   // Debounced save function
   const debouncedSave = useMemo(
@@ -151,17 +192,14 @@ export function EntryBlock({ entry }: EntryBlockProps) {
     }
   };
 
-  const handleCommitVersion = async () => {
+  const handleShowCommitDialog = () => {
     devLog.commitVersion(entry.id, entry.versionHead + 1);
-    devLog.apiCall('POST', 'commit_entry_version', { entryId: entry.id });
-    try {
-      await api.commitEntryVersion(entry.id);
-      devLog.apiSuccess('commit_entry_version', { entryId: entry.id, version: entry.versionHead + 1 });
-      // Could show a toast notification here
-    } catch (error) {
-      devLog.apiError('commit_entry_version', error);
-      throw error;
-    }
+    setShowCommitDialog(true);
+  };
+
+  const handleShowVersionHistory = () => {
+    devLog.click('Show Version History', { entryId: entry.id, sequenceId: entry.sequenceId });
+    setShowVersionHistory(true);
   };
 
   const handleToggleStaging = async () => {
@@ -279,13 +317,45 @@ export function EntryBlock({ entry }: EntryBlockProps) {
           {entry.versionHead > 0 && (
             <Tooltip>
               <TooltipTrigger asChild>
-                <span className="inline-flex items-center gap-1 rounded-full bg-secondary px-2 py-0.5 text-xs">
+                <button 
+                  onClick={handleShowVersionHistory}
+                  className={cn(
+                    "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs transition-colors",
+                    "hover:bg-accent cursor-pointer",
+                    hasUncommittedChanges 
+                      ? "bg-amber-100 dark:bg-amber-900/50 text-amber-700 dark:text-amber-300" 
+                      : "bg-secondary"
+                  )}
+                >
                   <GitCommit className="h-3 w-3" />
                   v{entry.versionHead}
+                  {hasUncommittedChanges && (
+                    <FileDiff className="h-3 w-3 ml-0.5" />
+                  )}
+                </button>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>
+                  {entry.versionHead} committed version(s)
+                  {hasUncommittedChanges && ' • Draft changes exist'}
+                </p>
+                <p className="text-xs text-muted-foreground mt-0.5">Click to view history</p>
+              </TooltipContent>
+            </Tooltip>
+          )}
+          
+          {/* Uncommitted changes indicator (when no versions yet) */}
+          {entry.versionHead === 0 && (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <span className="inline-flex items-center gap-1 rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">
+                  <FileDiff className="h-3 w-3" />
+                  Draft
                 </span>
               </TooltipTrigger>
               <TooltipContent>
-                <p>{entry.versionHead} committed version(s)</p>
+                <p>Not yet committed</p>
+                <p className="text-xs text-muted-foreground">Click the commit button to save a version</p>
               </TooltipContent>
             </Tooltip>
           )}
@@ -313,17 +383,23 @@ export function EntryBlock({ entry }: EntryBlockProps) {
               <Button
                 variant="ghost"
                 size="icon"
-                className="h-7 w-7"
+                className={cn(
+                  "h-7 w-7",
+                  hasUncommittedChanges && "text-amber-600 dark:text-amber-400"
+                )}
                 onClick={() => {
                   devLog.click('Commit Version Button', { entryId: entry.id, sequenceId: entry.sequenceId });
-                  handleCommitVersion();
+                  handleShowCommitDialog();
                 }}
               >
                 <GitCommit className="h-4 w-4" />
               </Button>
             </TooltipTrigger>
             <TooltipContent>
-              <p>Commit Version</p>
+              <p>Commit Version (Cmd+Shift+V)</p>
+              {hasUncommittedChanges && (
+                <p className="text-xs text-amber-500">Uncommitted changes</p>
+              )}
             </TooltipContent>
           </Tooltip>
 
@@ -340,10 +416,18 @@ export function EntryBlock({ entry }: EntryBlockProps) {
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
               <DropdownMenuItem
-                onClick={() => devLog.menuAction('Entry Options', 'Show History', { entryId: entry.id })}
+                onClick={() => {
+                  devLog.menuAction('Entry Options', 'Show History', { entryId: entry.id });
+                  handleShowVersionHistory();
+                }}
               >
                 <History className="mr-2 h-4 w-4" />
                 Show History
+                {entry.versionHead > 0 && (
+                  <span className="ml-auto text-xs text-muted-foreground">
+                    {entry.versionHead} versions
+                  </span>
+                )}
               </DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuItem
@@ -368,6 +452,20 @@ export function EntryBlock({ entry }: EntryBlockProps) {
       <div className="px-4 py-3">
         <EditorContent editor={editor} />
       </div>
+      
+      {/* Version History Dialog */}
+      <VersionHistoryDialog
+        open={showVersionHistory}
+        onOpenChange={setShowVersionHistory}
+        entry={entry}
+      />
+      
+      {/* Commit Dialog */}
+      <CommitDialog
+        open={showCommitDialog}
+        onOpenChange={setShowCommitDialog}
+        entry={entry}
+      />
     </div>
   );
 }

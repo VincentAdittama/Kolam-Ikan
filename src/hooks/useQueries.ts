@@ -166,7 +166,13 @@ export function useCommitVersion() {
     mutationFn: ({ entryId, message }: { entryId: string; message?: string }) =>
       api.commitEntryVersion(entryId, message),
     onSuccess: (version) => {
-      updateEntry(version.entryId, { versionHead: version.versionNumber });
+      // Update both version head and content (content may have changed from revert)
+      updateEntry(version.entryId, { 
+        versionHead: version.versionNumber,
+        content: version.contentSnapshot,
+      });
+      queryClient.invalidateQueries({ queryKey: ['versions', version.entryId] });
+      queryClient.invalidateQueries({ queryKey: ['latestVersion', version.entryId] });
       if (activeStreamId) {
         queryClient.invalidateQueries({ queryKey: ['stream', activeStreamId] });
       }
@@ -174,11 +180,27 @@ export function useCommitVersion() {
   });
 }
 
-export function useEntryVersions(entryId: string) {
+export function useEntryVersions(entryId: string | null) {
   return useQuery({
     queryKey: ['versions', entryId],
-    queryFn: () => api.getEntryVersions(entryId),
+    queryFn: () => api.getEntryVersions(entryId!),
     enabled: !!entryId,
+  });
+}
+
+export function useLatestVersion(entryId: string | null) {
+  return useQuery({
+    queryKey: ['latestVersion', entryId],
+    queryFn: () => api.getLatestVersion(entryId!),
+    enabled: !!entryId,
+  });
+}
+
+export function useVersionByNumber(entryId: string | null, versionNumber: number | null) {
+  return useQuery({
+    queryKey: ['version', entryId, versionNumber],
+    queryFn: () => api.getVersionByNumber(entryId!, versionNumber!),
+    enabled: !!entryId && versionNumber !== null,
   });
 }
 
@@ -189,9 +211,13 @@ export function useRevertToVersion() {
   return useMutation({
     mutationFn: ({ entryId, versionNumber }: { entryId: string; versionNumber: number }) =>
       api.revertToVersion(entryId, versionNumber),
-    onSuccess: () => {
+    onSuccess: async (_, { entryId }) => {
+      // Invalidate all version-related queries
+      queryClient.invalidateQueries({ queryKey: ['versions', entryId] });
+      queryClient.invalidateQueries({ queryKey: ['latestVersion', entryId] });
       if (activeStreamId) {
-        queryClient.invalidateQueries({ queryKey: ['stream', activeStreamId] });
+        // Refetch the stream to get updated entry content
+        await queryClient.invalidateQueries({ queryKey: ['stream', activeStreamId] });
       }
     },
   });
