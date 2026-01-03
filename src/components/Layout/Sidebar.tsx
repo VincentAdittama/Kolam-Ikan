@@ -27,6 +27,7 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { cn, formatRelativeTime } from '@/lib/utils';
+import { devLog } from '@/lib/devLogger';
 import { useAppStore } from '@/store/appStore';
 import * as api from '@/services/api';
 
@@ -80,9 +81,18 @@ export function Sidebar() {
   const handleCreateStream = async () => {
     if (!newStreamTitle.trim()) return;
 
-    await api.createStream({
-      title: newStreamTitle.trim(),
-    });
+    devLog.createStream(newStreamTitle.trim());
+    devLog.apiCall('POST', 'create_stream', { title: newStreamTitle.trim() });
+
+    try {
+      await api.createStream({
+        title: newStreamTitle.trim(),
+      });
+      devLog.apiSuccess('create_stream');
+    } catch (error) {
+      devLog.apiError('create_stream', error);
+      throw error;
+    }
 
     setNewStreamTitle('');
     setIsNewStreamOpen(false);
@@ -90,7 +100,17 @@ export function Sidebar() {
   };
 
   const handleDeleteStream = async (streamId: string) => {
-    await api.deleteStream(streamId);
+    devLog.deleteStream(streamId);
+    devLog.apiCall('DELETE', 'delete_stream', { streamId });
+
+    try {
+      await api.deleteStream(streamId);
+      devLog.apiSuccess('delete_stream');
+    } catch (error) {
+      devLog.apiError('delete_stream', error);
+      throw error;
+    }
+
     if (activeStreamId === streamId) {
       setActiveStreamId(null);
       setCurrentStream(null);
@@ -100,7 +120,17 @@ export function Sidebar() {
   };
 
   const handlePinStream = async (streamId: string, currentPinned: boolean) => {
-    await api.updateStream(streamId, { pinned: !currentPinned });
+    devLog.pinStream(streamId, !currentPinned);
+    devLog.apiCall('PATCH', 'update_stream', { streamId, pinned: !currentPinned });
+
+    try {
+      await api.updateStream(streamId, { pinned: !currentPinned });
+      devLog.apiSuccess('update_stream');
+    } catch (error) {
+      devLog.apiError('update_stream', error);
+      throw error;
+    }
+
     refetchStreams();
   };
 
@@ -109,9 +139,18 @@ export function Sidebar() {
       {/* Header */}
       <div className="flex items-center justify-between border-b px-4 py-3">
         <h2 className="font-semibold text-lg">Streams</h2>
-        <Dialog open={isNewStreamOpen} onOpenChange={setIsNewStreamOpen}>
+        <Dialog open={isNewStreamOpen} onOpenChange={(open) => {
+          if (open) devLog.openDialog('New Stream');
+          else devLog.closeDialog('New Stream');
+          setIsNewStreamOpen(open);
+        }}>
           <DialogTrigger asChild>
-            <Button variant="ghost" size="icon" className="h-8 w-8">
+            <Button 
+              variant="ghost" 
+              size="icon" 
+              className="h-8 w-8"
+              onClick={() => devLog.click('New Stream Button (Plus)')}
+            >
               <Plus className="h-4 w-4" />
             </Button>
           </DialogTrigger>
@@ -128,15 +167,26 @@ export function Sidebar() {
                 value={newStreamTitle}
                 onChange={(e) => setNewStreamTitle(e.target.value)}
                 onKeyDown={(e) => {
-                  if (e.key === 'Enter') handleCreateStream();
+                  if (e.key === 'Enter') {
+                    devLog.shortcut('Enter', 'Create stream from dialog');
+                    handleCreateStream();
+                  }
                 }}
+                onFocus={() => devLog.focus('New Stream Title Input')}
+                onBlur={() => devLog.blur('New Stream Title Input')}
               />
             </div>
             <DialogFooter>
-              <Button variant="outline" onClick={() => setIsNewStreamOpen(false)}>
+              <Button variant="outline" onClick={() => {
+                devLog.click('Cancel New Stream Button');
+                setIsNewStreamOpen(false);
+              }}>
                 Cancel
               </Button>
-              <Button onClick={handleCreateStream}>Create</Button>
+              <Button onClick={() => {
+                devLog.click('Create Stream Button', { title: newStreamTitle });
+                handleCreateStream();
+              }}>Create</Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
@@ -154,7 +204,10 @@ export function Sidebar() {
                   ? 'bg-accent text-accent-foreground'
                   : 'hover:bg-accent/50'
               )}
-              onClick={() => setActiveStreamId(stream.id)}
+              onClick={() => {
+                devLog.selectStream(stream.id, stream.title);
+                setActiveStreamId(stream.id);
+              }}
             >
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2">
@@ -176,7 +229,10 @@ export function Sidebar() {
                     variant="ghost"
                     size="icon"
                     className="h-6 w-6 opacity-0 group-hover:opacity-100"
-                    onClick={(e) => e.stopPropagation()}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      devLog.openMenu('Stream Options', { streamId: stream.id, streamTitle: stream.title });
+                    }}
                   >
                     <MoreVertical className="h-4 w-4" />
                   </Button>
@@ -185,6 +241,7 @@ export function Sidebar() {
                   <DropdownMenuItem
                     onClick={(e) => {
                       e.stopPropagation();
+                      devLog.menuAction('Stream Options', stream.pinned ? 'Unpin' : 'Pin', { streamId: stream.id });
                       handlePinStream(stream.id, stream.pinned);
                     }}
                   >
@@ -194,6 +251,7 @@ export function Sidebar() {
                   <DropdownMenuItem
                     onClick={(e) => {
                       e.stopPropagation();
+                      devLog.menuAction('Stream Options', 'Rename', { streamId: stream.id });
                       // TODO: Open rename dialog
                     }}
                   >
@@ -204,6 +262,7 @@ export function Sidebar() {
                     className="text-destructive"
                     onClick={(e) => {
                       e.stopPropagation();
+                      devLog.menuAction('Stream Options', 'Delete', { streamId: stream.id });
                       handleDeleteStream(stream.id);
                     }}
                   >
@@ -219,7 +278,12 @@ export function Sidebar() {
 
       {/* Footer */}
       <div className="border-t p-2">
-        <Button variant="ghost" className="w-full justify-start gap-2" size="sm">
+        <Button 
+          variant="ghost" 
+          className="w-full justify-start gap-2" 
+          size="sm"
+          onClick={() => devLog.click('Quick Start Guide Button')}
+        >
           <HelpCircle className="h-4 w-4" />
           Quick Start Guide
         </Button>

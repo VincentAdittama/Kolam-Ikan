@@ -25,6 +25,7 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip';
 import { cn, estimateTokens, formatTokenCount, getTokenStatus } from '@/lib/utils';
+import { devLog } from '@/lib/devLogger';
 import { useAppStore } from '@/store/appStore';
 import { MODEL_CONFIGS, type DirectiveType, type ModelType } from '@/types';
 import { generateBridgePrompt, parseAIResponse, contentToProseMirror } from '@/services/bridge';
@@ -83,34 +84,47 @@ export function RightPanel() {
   const handleCopyBridgePrompt = async () => {
     if (!activeStreamId || stagedEntries.length === 0) return;
 
+    devLog.click('Copy Bridge Prompt', { 
+      directive: selectedDirective, 
+      stagedCount: stagedEntries.length,
+      tokenUsage: tokenUsage.used 
+    });
+
     setIsExporting(true);
     setExportError(null);
 
     try {
       // Check token limit
       if (tokenUsage.percentage >= 100) {
+        devLog.error('Bridge export failed', 'Token limit exceeded');
         setExportError('Token limit exceeded. Remove some staged entries.');
         return;
       }
 
       // Generate bridge prompt
+      devLog.action('Generating bridge prompt', { directive: selectedDirective });
       const bridgeExport = await generateBridgePrompt(stagedEntries, selectedDirective);
 
       // Copy to clipboard
       await writeText(bridgeExport.prompt);
+      devLog.bridgeCopy(selectedDirective, bridgeExport.tokenEstimate, stagedEntries.length);
 
       // Create pending block
+      devLog.apiCall('POST', 'create_pending_block', { bridgeKey: bridgeExport.bridgeKey });
       const pending = await api.createPendingBlock(
         activeStreamId,
         bridgeExport.bridgeKey,
         bridgeExport.stagedEntryIds,
         selectedDirective
       );
+      devLog.apiSuccess('create_pending_block', { pendingBlockId: pending.id });
       setPendingBlock(pending);
 
       // Clear staging
+      devLog.clearStaging(stagedEntries.length);
       clearAllStaging();
     } catch (error) {
+      devLog.apiError('bridge_export', error);
       setExportError(`Failed to export: ${error}`);
     } finally {
       setIsExporting(false);
@@ -121,25 +135,32 @@ export function RightPanel() {
   const handleBridgeResponse = async () => {
     if (!activeStreamId || !pendingBlock) return;
 
+    devLog.click('Bridge Response', { pendingBlockId: pendingBlock.id, bridgeKey: pendingBlock.bridgeKey });
+
     setIsImporting(true);
     setExportError(null);
 
     try {
       // Read from clipboard
+      devLog.action('Reading clipboard for AI response');
       const clipboardText = await readText();
       if (!clipboardText || clipboardText.trim() === '') {
+        devLog.error('Bridge import failed', 'Clipboard is empty');
         setExportError('Clipboard is empty. Copy AI response first.');
         return;
       }
 
       // Parse the response
+      devLog.action('Parsing AI response', { textLength: clipboardText.length });
       const { content, bridgeKey } = parseAIResponse(clipboardText);
 
       // Validate bridge key
       if (!bridgeKey) {
         // Show warning but allow import
+        devLog.error('Bridge key warning', 'No bridge key detected in response');
         console.warn('No bridge key detected');
       } else if (bridgeKey !== pendingBlock.bridgeKey) {
+        devLog.error('Bridge key mismatch', { expected: pendingBlock.bridgeKey, found: bridgeKey });
         setExportError(`Bridge key mismatch. Expected: ${pendingBlock.bridgeKey}, Found: ${bridgeKey}`);
         return;
       }
@@ -148,19 +169,28 @@ export function RightPanel() {
       const prosemirrorContent = contentToProseMirror(content);
 
       // Create AI entry
+      devLog.createEntry(activeStreamId, 'ai');
+      devLog.apiCall('POST', 'create_entry', { streamId: activeStreamId, role: 'ai' });
       const newEntry = await api.createEntry({
         streamId: activeStreamId,
         role: 'ai',
         content: prosemirrorContent,
       });
 
+      devLog.apiSuccess('create_entry', { entryId: newEntry.id, sequenceId: newEntry.sequenceId });
+
       // Add to store
       addEntry(newEntry);
 
       // Delete pending block
+      devLog.apiCall('DELETE', 'delete_pending_block', { pendingBlockId: pendingBlock.id });
       await api.deletePendingBlock(pendingBlock.id);
+      devLog.apiSuccess('delete_pending_block');
+      devLog.bridgeImport(pendingBlock.bridgeKey, true);
       setPendingBlock(null);
     } catch (error) {
+      devLog.apiError('bridge_import', error);
+      devLog.bridgeImport(pendingBlock?.bridgeKey || 'unknown', false);
       setExportError(`Failed to import: ${error}`);
     } finally {
       setIsImporting(false);
@@ -176,7 +206,10 @@ export function RightPanel() {
           {DIRECTIVE_OPTIONS.map((option) => (
             <button
               key={option.value}
-              onClick={() => setSelectedDirective(option.value)}
+              onClick={() => {
+                devLog.selectDirective(option.value);
+                setSelectedDirective(option.value);
+              }}
               className={cn(
                 'flex w-full items-center gap-3 rounded-md px-3 py-2 text-left transition-colors',
                 selectedDirective === option.value
@@ -216,7 +249,10 @@ export function RightPanel() {
             <Button
               variant="ghost"
               size="sm"
-              onClick={clearAllStaging}
+              onClick={() => {
+                devLog.clearStaging(stagedEntries.length);
+                clearAllStaging();
+              }}
               className="h-6 text-xs"
             >
               Clear all
@@ -243,7 +279,10 @@ export function RightPanel() {
                     variant="ghost"
                     size="icon"
                     className="h-5 w-5"
-                    onClick={() => unstageEntry(entry.id)}
+                    onClick={() => {
+                      devLog.unstage(entry.id, entry.sequenceId);
+                      unstageEntry(entry.id);
+                    }}
                   >
                     <X className="h-3 w-3" />
                   </Button>
@@ -260,7 +299,10 @@ export function RightPanel() {
           <h3 className="text-sm font-medium">Context Size</h3>
           <Select
             value={selectedModel}
-            onValueChange={(v) => setSelectedModel(v as ModelType)}
+            onValueChange={(v) => {
+              devLog.selectModel(v);
+              setSelectedModel(v as ModelType);
+            }}
           >
             <SelectTrigger className="h-7 w-[130px] text-xs">
               <SelectValue />

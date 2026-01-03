@@ -3,6 +3,7 @@ import { Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useAppStore } from '@/store/appStore';
+import { devLog } from '@/lib/devLogger';
 import { EntryBlock } from '@/components/Stream/EntryBlock';
 import * as api from '@/services/api';
 
@@ -18,6 +19,9 @@ export function MainView() {
   const handleCreateEntry = async () => {
     if (!activeStreamId) return;
 
+    devLog.createEntry(activeStreamId, 'user');
+    devLog.click('New Entry Button', { streamId: activeStreamId });
+
     const emptyContent = {
       type: 'doc',
       content: [
@@ -28,13 +32,21 @@ export function MainView() {
       ],
     };
 
-    const newEntry = await api.createEntry({
-      streamId: activeStreamId,
-      role: 'user',
-      content: emptyContent,
-    });
+    devLog.apiCall('POST', 'create_entry', { streamId: activeStreamId, role: 'user' });
 
-    addEntry(newEntry);
+    try {
+      const newEntry = await api.createEntry({
+        streamId: activeStreamId,
+        role: 'user',
+        content: emptyContent,
+      });
+
+      devLog.apiSuccess('create_entry', { entryId: newEntry.id, sequenceId: newEntry.sequenceId });
+      addEntry(newEntry);
+    } catch (error) {
+      devLog.apiError('create_entry', error);
+      throw error;
+    }
   };
 
   if (!currentStream) {

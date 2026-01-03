@@ -24,6 +24,7 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
+import { devLog } from '@/lib/devLogger';
 
 interface EditorToolbarProps {
   editor: Editor;
@@ -38,6 +39,11 @@ interface ToolbarButtonProps {
 }
 
 function ToolbarButton({ icon, label, shortcut, isActive, onClick }: ToolbarButtonProps) {
+  const handleClick = () => {
+    devLog.editorAction(`Toolbar: ${label}`, { shortcut, wasActive: isActive });
+    onClick();
+  };
+
   return (
     <Tooltip>
       <TooltipTrigger asChild>
@@ -45,7 +51,7 @@ function ToolbarButton({ icon, label, shortcut, isActive, onClick }: ToolbarButt
           variant="ghost"
           size="icon"
           className={cn('h-7 w-7', isActive && 'bg-accent')}
-          onClick={onClick}
+          onClick={handleClick}
         >
           {icon}
         </Button>

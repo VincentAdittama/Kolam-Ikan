@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { devLog } from '@/lib/devLogger';
 import type {
   Stream,
   StreamMetadata,
@@ -86,57 +87,108 @@ export const useAppStore = create<AppState>((set, _get) => ({
   isLoadingEntries: false,
   
   // UI Actions
-  setActiveStreamId: (id) => set({ activeStreamId: id }),
-  setSelectedDirective: (directive) => set({ selectedDirective: directive }),
-  setSelectedModel: (model) => set({ selectedModel: model }),
-  toggleSidebar: () => set((state) => ({ sidebarVisible: !state.sidebarVisible })),
-  toggleRightPanel: () => set((state) => ({ rightPanelVisible: !state.rightPanelVisible })),
-  setTheme: (theme) => set({ theme }),
+  setActiveStreamId: (id) => {
+    devLog.action('Store: setActiveStreamId', { streamId: id });
+    set({ activeStreamId: id });
+  },
+  setSelectedDirective: (directive) => {
+    devLog.action('Store: setSelectedDirective', { directive });
+    set({ selectedDirective: directive });
+  },
+  setSelectedModel: (model) => {
+    devLog.action('Store: setSelectedModel', { model });
+    set({ selectedModel: model });
+  },
+  toggleSidebar: () => set((state) => {
+    const newVisible = !state.sidebarVisible;
+    devLog.toggleSidebar(newVisible);
+    return { sidebarVisible: newVisible };
+  }),
+  toggleRightPanel: () => set((state) => {
+    const newVisible = !state.rightPanelVisible;
+    devLog.toggleRightPanel(newVisible);
+    return { rightPanelVisible: newVisible };
+  }),
+  setTheme: (theme) => {
+    devLog.action('Store: setTheme', { theme });
+    set({ theme });
+  },
   
   // Data Actions
-  setStreams: (streams) => set({ streams }),
-  setCurrentStream: (stream) => set({ currentStream: stream }),
-  setEntries: (entries) => set({ entries }),
-  addEntry: (entry) => set((state) => ({
-    entries: [...state.entries, entry],
-  })),
+  setStreams: (streams) => {
+    devLog.action('Store: setStreams', { count: streams.length });
+    set({ streams });
+  },
+  setCurrentStream: (stream) => {
+    devLog.action('Store: setCurrentStream', { streamId: stream?.id, title: stream?.title });
+    set({ currentStream: stream });
+  },
+  setEntries: (entries) => {
+    devLog.action('Store: setEntries', { count: entries.length });
+    set({ entries });
+  },
+  addEntry: (entry) => {
+    devLog.action('Store: addEntry', { entryId: entry.id, sequenceId: entry.sequenceId, role: entry.role });
+    set((state) => ({
+      entries: [...state.entries, entry],
+    }));
+  },
   updateEntry: (entryId, updates) => set((state) => ({
     entries: state.entries.map((e) =>
       e.id === entryId ? { ...e, ...updates } : e
     ),
   })),
-  removeEntry: (entryId) => set((state) => ({
-    entries: state.entries.filter((e) => e.id !== entryId),
-    stagedEntryIds: new Set([...state.stagedEntryIds].filter((id) => id !== entryId)),
-  })),
+  removeEntry: (entryId) => {
+    devLog.action('Store: removeEntry', { entryId });
+    set((state) => ({
+      entries: state.entries.filter((e) => e.id !== entryId),
+      stagedEntryIds: new Set([...state.stagedEntryIds].filter((id) => id !== entryId)),
+    }));
+  },
   
   // Staging Actions
   toggleStaging: (entryId) => set((state) => {
     const newStaged = new Set(state.stagedEntryIds);
     if (newStaged.has(entryId)) {
       newStaged.delete(entryId);
+      devLog.action('Store: toggleStaging (unstage)', { entryId });
     } else {
       newStaged.add(entryId);
+      devLog.action('Store: toggleStaging (stage)', { entryId });
     }
     return { stagedEntryIds: newStaged };
   }),
   stageEntry: (entryId) => set((state) => {
+    devLog.action('Store: stageEntry', { entryId });
     const newStaged = new Set(state.stagedEntryIds);
     newStaged.add(entryId);
     return { stagedEntryIds: newStaged };
   }),
   unstageEntry: (entryId) => set((state) => {
+    devLog.action('Store: unstageEntry', { entryId });
     const newStaged = new Set(state.stagedEntryIds);
     newStaged.delete(entryId);
     return { stagedEntryIds: newStaged };
   }),
-  clearAllStaging: () => set({ stagedEntryIds: new Set() }),
+  clearAllStaging: () => {
+    devLog.action('Store: clearAllStaging');
+    set({ stagedEntryIds: new Set() });
+  },
   
-  setPendingBlock: (block) => set({ pendingBlock: block }),
+  setPendingBlock: (block) => {
+    devLog.action('Store: setPendingBlock', { blockId: block?.id, bridgeKey: block?.bridgeKey });
+    set({ pendingBlock: block });
+  },
   
   // Search Actions
-  setSearchOpen: (isOpen) => set({ isSearchOpen: isOpen }),
-  setSearchQuery: (query) => set({ searchQuery: query }),
+  setSearchOpen: (isOpen) => {
+    devLog.action('Store: setSearchOpen', { isOpen });
+    set({ isSearchOpen: isOpen });
+  },
+  setSearchQuery: (query) => {
+    if (query) devLog.search(query);
+    set({ searchQuery: query });
+  },
   
   // Loading Actions
   setLoadingStreams: (loading) => set({ isLoadingStreams: loading }),

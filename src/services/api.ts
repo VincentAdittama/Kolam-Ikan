@@ -1,4 +1,5 @@
 import { invoke } from '@tauri-apps/api/core';
+import { devLog } from '@/lib/devLogger';
 import type {
   Stream,
   StreamMetadata,
@@ -11,26 +12,45 @@ import type {
 import type { JSONContent } from '@tiptap/react';
 
 // ============================================================
+// API WRAPPER WITH LOGGING
+// ============================================================
+
+async function invokeWithLogging<T>(
+  command: string,
+  args?: Record<string, unknown>
+): Promise<T> {
+  devLog.apiCall('INVOKE', command, args);
+  try {
+    const result = await invoke<T>(command, args);
+    devLog.apiSuccess(command, { hasResult: result !== undefined });
+    return result;
+  } catch (error) {
+    devLog.apiError(command, error);
+    throw error;
+  }
+}
+
+// ============================================================
 // STREAM API
 // ============================================================
 
 export async function createStream(input: CreateStreamInput): Promise<Stream> {
-  return invoke('create_stream', { input });
+  return invokeWithLogging('create_stream', { input });
 }
 
 export async function getAllStreams(): Promise<StreamMetadata[]> {
-  return invoke('get_all_streams');
+  return invokeWithLogging('get_all_streams');
 }
 
 export async function getStreamDetails(streamId: string): Promise<{
   stream: Stream;
   entries: Entry[];
 }> {
-  return invoke('get_stream_details', { streamId });
+  return invokeWithLogging('get_stream_details', { streamId });
 }
 
 export async function deleteStream(streamId: string): Promise<void> {
-  return invoke('delete_stream', { streamId });
+  return invokeWithLogging('delete_stream', { streamId });
 }
 
 export async function updateStream(
@@ -41,7 +61,7 @@ export async function updateStream(
     pinned?: boolean;
   }
 ): Promise<void> {
-  return invoke('update_stream', {
+  return invokeWithLogging('update_stream', {
     streamId,
     title: updates.title,
     description: updates.description,
@@ -54,33 +74,33 @@ export async function updateStream(
 // ============================================================
 
 export async function createEntry(input: CreateEntryInput): Promise<Entry> {
-  return invoke('create_entry', { input });
+  return invokeWithLogging('create_entry', { input });
 }
 
 export async function updateEntryContent(
   entryId: string,
   content: JSONContent
 ): Promise<void> {
-  return invoke('update_entry_content', { entryId, content });
+  return invokeWithLogging('update_entry_content', { entryId, content });
 }
 
 export async function toggleEntryStaging(
   entryId: string,
   isStaged: boolean
 ): Promise<void> {
-  return invoke('toggle_entry_staging', { entryId, isStaged });
+  return invokeWithLogging('toggle_entry_staging', { entryId, isStaged });
 }
 
 export async function deleteEntry(entryId: string): Promise<void> {
-  return invoke('delete_entry', { entryId });
+  return invokeWithLogging('delete_entry', { entryId });
 }
 
 export async function getStagedEntries(streamId: string): Promise<Entry[]> {
-  return invoke('get_staged_entries', { streamId });
+  return invokeWithLogging('get_staged_entries', { streamId });
 }
 
 export async function clearAllStaging(streamId: string): Promise<void> {
-  return invoke('clear_all_staging', { streamId });
+  return invokeWithLogging('clear_all_staging', { streamId });
 }
 
 // ============================================================
@@ -91,18 +111,18 @@ export async function commitEntryVersion(
   entryId: string,
   commitMessage?: string
 ): Promise<EntryVersion> {
-  return invoke('commit_entry_version', { entryId, commitMessage });
+  return invokeWithLogging('commit_entry_version', { entryId, commitMessage });
 }
 
 export async function getEntryVersions(entryId: string): Promise<EntryVersion[]> {
-  return invoke('get_entry_versions', { entryId });
+  return invokeWithLogging('get_entry_versions', { entryId });
 }
 
 export async function revertToVersion(
   entryId: string,
   versionNumber: number
 ): Promise<void> {
-  return invoke('revert_to_version', { entryId, versionNumber });
+  return invokeWithLogging('revert_to_version', { entryId, versionNumber });
 }
 
 // ============================================================
@@ -110,18 +130,18 @@ export async function revertToVersion(
 // ============================================================
 
 export async function generateBridgeKey(): Promise<string> {
-  return invoke('generate_bridge_key');
+  return invokeWithLogging('generate_bridge_key');
 }
 
 export async function validateBridgeKey(
   inputText: string,
   expectedKey: string
 ): Promise<boolean> {
-  return invoke('validate_bridge_key', { inputText, expectedKey });
+  return invokeWithLogging('validate_bridge_key', { inputText, expectedKey });
 }
 
 export async function extractBridgeKey(inputText: string): Promise<string | null> {
-  return invoke('extract_bridge_key', { inputText });
+  return invokeWithLogging('extract_bridge_key', { inputText });
 }
 
 export async function createPendingBlock(
@@ -130,7 +150,7 @@ export async function createPendingBlock(
   stagedContextIds: string[],
   directive: string
 ): Promise<PendingBlock> {
-  return invoke('create_pending_block', {
+  return invokeWithLogging('create_pending_block', {
     streamId,
     bridgeKey,
     stagedContextIds,
@@ -139,11 +159,11 @@ export async function createPendingBlock(
 }
 
 export async function getPendingBlock(streamId: string): Promise<PendingBlock | null> {
-  return invoke('get_pending_block', { streamId });
+  return invokeWithLogging('get_pending_block', { streamId });
 }
 
 export async function deletePendingBlock(pendingBlockId: string): Promise<void> {
-  return invoke('delete_pending_block', { pendingBlockId });
+  return invokeWithLogging('delete_pending_block', { pendingBlockId });
 }
 
 // ============================================================
@@ -151,5 +171,5 @@ export async function deletePendingBlock(pendingBlockId: string): Promise<void> 
 // ============================================================
 
 export async function searchEntries(query: string): Promise<Entry[]> {
-  return invoke('search_entries', { query });
+  return invokeWithLogging('search_entries', { query });
 }

@@ -36,6 +36,7 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip';
 import { cn, formatEntryTime, debounce } from '@/lib/utils';
+import { devLog } from '@/lib/devLogger';
 import { useAppStore } from '@/store/appStore';
 import type { Entry } from '@/types';
 import * as api from '@/services/api';
@@ -61,7 +62,14 @@ export function EntryBlock({ entry }: EntryBlockProps) {
   // Debounced save function
   const debouncedSave = useCallback(
     debounce(async (content: unknown) => {
-      await api.updateEntryContent(entry.id, content as import('@tiptap/react').JSONContent);
+      devLog.editorContent('Auto-save entry', entry.id);
+      devLog.apiCall('PATCH', 'update_entry_content', { entryId: entry.id });
+      try {
+        await api.updateEntryContent(entry.id, content as import('@tiptap/react').JSONContent);
+        devLog.apiSuccess('update_entry_content', { entryId: entry.id });
+      } catch (error) {
+        devLog.apiError('update_entry_content', error);
+      }
     }, 500),
     [entry.id]
   );
@@ -104,8 +112,15 @@ export function EntryBlock({ entry }: EntryBlockProps) {
     },
     onUpdate: ({ editor }) => {
       const json = editor.getJSON();
+      devLog.editorAction('Content update', { entryId: entry.id, sequenceId: entry.sequenceId });
       updateEntry(entry.id, { content: json });
       debouncedSave(json);
+    },
+    onFocus: () => {
+      devLog.focus(`Entry editor #${entry.sequenceId}`, { entryId: entry.id });
+    },
+    onBlur: () => {
+      devLog.blur(`Entry editor #${entry.sequenceId}`, { entryId: entry.id });
     },
   });
 
@@ -121,18 +136,45 @@ export function EntryBlock({ entry }: EntryBlockProps) {
   }, [editor, entry.content]);
 
   const handleDelete = async () => {
-    await api.deleteEntry(entry.id);
-    removeEntry(entry.id);
+    devLog.deleteEntry(entry.id, entry.sequenceId);
+    devLog.apiCall('DELETE', 'delete_entry', { entryId: entry.id });
+    try {
+      await api.deleteEntry(entry.id);
+      devLog.apiSuccess('delete_entry', { entryId: entry.id });
+      removeEntry(entry.id);
+    } catch (error) {
+      devLog.apiError('delete_entry', error);
+      throw error;
+    }
   };
 
   const handleCommitVersion = async () => {
-    await api.commitEntryVersion(entry.id);
-    // Could show a toast notification here
+    devLog.commitVersion(entry.id, entry.versionHead + 1);
+    devLog.apiCall('POST', 'commit_entry_version', { entryId: entry.id });
+    try {
+      await api.commitEntryVersion(entry.id);
+      devLog.apiSuccess('commit_entry_version', { entryId: entry.id, version: entry.versionHead + 1 });
+      // Could show a toast notification here
+    } catch (error) {
+      devLog.apiError('commit_entry_version', error);
+      throw error;
+    }
   };
 
   const handleToggleStaging = async () => {
+    if (isStaged) {
+      devLog.unstage(entry.id, entry.sequenceId);
+    } else {
+      devLog.stage(entry.id, entry.sequenceId);
+    }
     toggleStaging(entry.id);
-    await api.toggleEntryStaging(entry.id, !isStaged);
+    devLog.apiCall('PATCH', 'toggle_entry_staging', { entryId: entry.id, isStaged: !isStaged });
+    try {
+      await api.toggleEntryStaging(entry.id, !isStaged);
+      devLog.apiSuccess('toggle_entry_staging');
+    } catch (error) {
+      devLog.apiError('toggle_entry_staging', error);
+    }
   };
 
   return (
@@ -217,7 +259,10 @@ export function EntryBlock({ entry }: EntryBlockProps) {
                 variant="ghost"
                 size="icon"
                 className="h-7 w-7"
-                onClick={handleCommitVersion}
+                onClick={() => {
+                  devLog.click('Commit Version Button', { entryId: entry.id, sequenceId: entry.sequenceId });
+                  handleCommitVersion();
+                }}
               >
                 <GitCommit className="h-4 w-4" />
               </Button>
@@ -229,19 +274,29 @@ export function EntryBlock({ entry }: EntryBlockProps) {
 
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="icon" className="h-7 w-7">
+              <Button 
+                variant="ghost" 
+                size="icon" 
+                className="h-7 w-7"
+                onClick={() => devLog.openMenu('Entry Options', { entryId: entry.id, sequenceId: entry.sequenceId })}
+              >
                 <MoreVertical className="h-4 w-4" />
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
-              <DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={() => devLog.menuAction('Entry Options', 'Show History', { entryId: entry.id })}
+              >
                 <History className="mr-2 h-4 w-4" />
                 Show History
               </DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuItem
                 className="text-destructive"
-                onClick={handleDelete}
+                onClick={() => {
+                  devLog.menuAction('Entry Options', 'Delete Entry', { entryId: entry.id });
+                  handleDelete();
+                }}
               >
                 <Trash2 className="mr-2 h-4 w-4" />
                 Delete Entry
