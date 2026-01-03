@@ -67,8 +67,10 @@ pub fn get_all_streams(db: State<Database>) -> Result<Vec<StreamMetadata>, Strin
 
     let streams = stmt
         .query_map([], |row| {
-            let tags_str: String = row.get(4)?;
-            let tags: Vec<String> = serde_json::from_str(&tags_str).unwrap_or_default();
+            let tags_str: Option<String> = row.get(4)?;
+            let tags: Vec<String> = tags_str
+                .and_then(|s| serde_json::from_str(&s).ok())
+                .unwrap_or_default();
             
             Ok(StreamMetadata {
                 id: row.get(0)?,
@@ -101,8 +103,10 @@ pub fn get_stream_details(
              FROM streams WHERE id = ?1",
             params![stream_id],
             |row| {
-                let tags_str: String = row.get(3)?;
-                let tags: Vec<String> = serde_json::from_str(&tags_str).unwrap_or_default();
+                let tags_str: Option<String> = row.get(3)?;
+                let tags: Vec<String> = tags_str
+                    .and_then(|s| serde_json::from_str(&s).ok())
+                    .unwrap_or_default();
                 
                 Ok(Stream {
                     id: row.get(0)?,

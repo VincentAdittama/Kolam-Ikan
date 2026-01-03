@@ -1,6 +1,7 @@
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
 pub struct Stream {
     pub id: String,
     pub title: String,
@@ -13,6 +14,7 @@ pub struct Stream {
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
 pub struct StreamMetadata {
     pub id: String,
     pub title: String,
@@ -24,6 +26,7 @@ pub struct StreamMetadata {
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
 pub struct Entry {
     pub id: String,
     pub stream_id: String,
@@ -38,6 +41,7 @@ pub struct Entry {
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
 pub struct EntryVersion {
     pub id: String,
     pub entry_id: String,
@@ -49,6 +53,7 @@ pub struct EntryVersion {
 
 #[allow(dead_code)]
 #[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
 pub struct Spotlight {
     pub id: String,
     pub entry_id: String,
@@ -59,6 +64,7 @@ pub struct Spotlight {
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
 pub struct PendingBlock {
     pub id: String,
     pub stream_id: String,
@@ -69,6 +75,7 @@ pub struct PendingBlock {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct CreateStreamInput {
     pub title: String,
     pub description: Option<String>,
@@ -77,6 +84,7 @@ pub struct CreateStreamInput {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct CreateEntryInput {
     pub stream_id: String,
     pub role: String,
@@ -85,12 +93,14 @@ pub struct CreateEntryInput {
 
 #[allow(dead_code)]
 #[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct UpdateEntryContentInput {
     pub entry_id: String,
     pub content: serde_json::Value,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct StreamWithEntries {
     pub stream: Stream,
     pub entries: Vec<Entry>,
