@@ -536,6 +536,49 @@ export function contentToProseMirror(content: string): JSONContent {
       const itemInfo = parseListItem(line);
       
       if (!itemInfo) {
+        // Handle empty lines (loose lists)
+        if (line.trim() === '') {
+          let peekIdx = idx + 1;
+          while (peekIdx < lines.length && lines[peekIdx].trim() === '') {
+            peekIdx++;
+          }
+          
+          if (peekIdx < lines.length) {
+            const nextLine = lines[peekIdx];
+            const nextInfo = parseListItem(nextLine);
+            
+            // Check if next content belongs to this list
+            if (baseIndent !== null) {
+              if (nextInfo) {
+                // If nested list item (indented deeper)
+                if (nextInfo.indent > baseIndent) {
+                  idx = peekIdx;
+                  continue;
+                }
+                
+                // If sibling list item (same indent) - must be same type for it to be the same list
+                // (Markdown allows mixing types sometimes, but strict parsing is safer for structure)
+                if (nextInfo.indent === baseIndent) {
+                  const nextType = nextInfo.type === 'ordered' ? 'orderedList' : 
+                                  nextInfo.type === 'task' ? 'taskList' : 'bulletList';
+                  if (nextType === listType) {
+                    idx = peekIdx;
+                    continue;
+                  }
+                }
+              } else if (nextLine.match(/^\s+/)) {
+                // Indented continuation text
+                const indentMatch = nextLine.match(/^(\s+)/);
+                const nextIndent = indentMatch ? indentMatch[1].length : 0;
+                if (nextIndent > baseIndent) {
+                  idx = peekIdx;
+                  continue;
+                }
+              }
+            }
+          }
+        }
+
         // Check if it's a continuation of the previous item (indented text)
         if (line.match(/^\s{2,}/) && items.length > 0) {
           // This is a continuation - skip for now (simplified)
