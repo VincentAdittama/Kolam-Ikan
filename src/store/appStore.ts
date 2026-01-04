@@ -1,5 +1,5 @@
-import { create } from 'zustand';
-import { devLog } from '@/lib/devLogger';
+import { create } from "zustand";
+import { devLog } from "@/lib/devLogger";
 import type {
   Stream,
   StreamMetadata,
@@ -7,7 +7,7 @@ import type {
   DirectiveType,
   ModelType,
   PendingBlock,
-} from '@/types';
+} from "@/types";
 
 interface AppState {
   // UI State
@@ -16,48 +16,50 @@ interface AppState {
   selectedModel: ModelType;
   sidebarVisible: boolean;
   rightPanelVisible: boolean;
-  theme: 'light' | 'dark' | 'system';
-  
+  theme: "light" | "dark" | "system";
+
   // Data State
   streams: StreamMetadata[];
   currentStream: Stream | null;
   entries: Entry[];
   stagedEntryIds: Set<string>;
   pendingBlock: PendingBlock | null;
-  
+  lastCreatedEntryId: string | null;
+
   // Search State
   isSearchOpen: boolean;
   searchQuery: string;
-  
+
   // Loading States
   isLoadingStreams: boolean;
   isLoadingEntries: boolean;
-  
+
   // Actions
   setActiveStreamId: (id: string | null) => void;
   setSelectedDirective: (directive: DirectiveType) => void;
   setSelectedModel: (model: ModelType) => void;
   toggleSidebar: () => void;
   toggleRightPanel: () => void;
-  setTheme: (theme: 'light' | 'dark' | 'system') => void;
-  
+  setTheme: (theme: "light" | "dark" | "system") => void;
+
   setStreams: (streams: StreamMetadata[]) => void;
   setCurrentStream: (stream: Stream | null) => void;
   setEntries: (entries: Entry[]) => void;
   addEntry: (entry: Entry) => void;
   updateEntry: (entryId: string, updates: Partial<Entry>) => void;
   removeEntry: (entryId: string) => void;
-  
+
   toggleStaging: (entryId: string) => void;
   stageEntry: (entryId: string) => void;
   unstageEntry: (entryId: string) => void;
   clearAllStaging: () => void;
-  
+
   setPendingBlock: (block: PendingBlock | null) => void;
-  
+  setLastCreatedEntryId: (id: string | null) => void;
+
   setSearchOpen: (isOpen: boolean) => void;
   setSearchQuery: (query: string) => void;
-  
+
   setLoadingStreams: (loading: boolean) => void;
   setLoadingEntries: (loading: boolean) => void;
 }
@@ -65,131 +67,155 @@ interface AppState {
 export const useAppStore = create<AppState>((set) => ({
   // Initial UI State
   activeStreamId: null,
-  selectedDirective: 'DUMP',
-  selectedModel: 'gpt4-turbo',
+  selectedDirective: "DUMP",
+  selectedModel: "gpt4-turbo",
   sidebarVisible: true,
   rightPanelVisible: true,
-  theme: 'system',
-  
+  theme: "system",
+
   // Initial Data State
   streams: [],
   currentStream: null,
   entries: [],
   stagedEntryIds: new Set(),
   pendingBlock: null,
-  
+  lastCreatedEntryId: null,
+
   // Initial Search State
   isSearchOpen: false,
-  searchQuery: '',
-  
+  searchQuery: "",
+
   // Initial Loading States
   isLoadingStreams: false,
   isLoadingEntries: false,
-  
+
   // UI Actions
   setActiveStreamId: (id) => {
-    devLog.action('Store: setActiveStreamId', { streamId: id });
+    devLog.action("Store: setActiveStreamId", { streamId: id });
     set({ activeStreamId: id });
   },
   setSelectedDirective: (directive) => {
-    devLog.action('Store: setSelectedDirective', { directive });
+    devLog.action("Store: setSelectedDirective", { directive });
     set({ selectedDirective: directive });
   },
   setSelectedModel: (model) => {
-    devLog.action('Store: setSelectedModel', { model });
+    devLog.action("Store: setSelectedModel", { model });
     set({ selectedModel: model });
   },
-  toggleSidebar: () => set((state) => {
-    const newVisible = !state.sidebarVisible;
-    devLog.toggleSidebar(newVisible);
-    return { sidebarVisible: newVisible };
-  }),
-  toggleRightPanel: () => set((state) => {
-    const newVisible = !state.rightPanelVisible;
-    devLog.toggleRightPanel(newVisible);
-    return { rightPanelVisible: newVisible };
-  }),
+  toggleSidebar: () =>
+    set((state) => {
+      const newVisible = !state.sidebarVisible;
+      devLog.toggleSidebar(newVisible);
+      return { sidebarVisible: newVisible };
+    }),
+  toggleRightPanel: () =>
+    set((state) => {
+      const newVisible = !state.rightPanelVisible;
+      devLog.toggleRightPanel(newVisible);
+      return { rightPanelVisible: newVisible };
+    }),
   setTheme: (theme) => {
-    devLog.action('Store: setTheme', { theme });
+    devLog.action("Store: setTheme", { theme });
     set({ theme });
   },
-  
+
   // Data Actions
   setStreams: (streams) => {
-    devLog.action('Store: setStreams', { count: streams.length });
+    devLog.action("Store: setStreams", { count: streams.length });
     set({ streams });
   },
   setCurrentStream: (stream) => {
-    devLog.action('Store: setCurrentStream', { streamId: stream?.id, title: stream?.title });
+    devLog.action("Store: setCurrentStream", {
+      streamId: stream?.id,
+      title: stream?.title,
+    });
     set({ currentStream: stream });
   },
   setEntries: (entries) => {
-    devLog.action('Store: setEntries', { count: entries.length });
+    devLog.action("Store: setEntries", { count: entries.length });
     set({ entries });
   },
   addEntry: (entry) => {
-    devLog.action('Store: addEntry', { entryId: entry.id, sequenceId: entry.sequenceId, role: entry.role });
+    devLog.action("Store: addEntry", {
+      entryId: entry.id,
+      sequenceId: entry.sequenceId,
+      role: entry.role,
+    });
     set((state) => ({
       entries: [...state.entries, entry],
     }));
   },
-  updateEntry: (entryId, updates) => set((state) => ({
-    entries: state.entries.map((e) =>
-      e.id === entryId ? { ...e, ...updates } : e
-    ),
-  })),
+  updateEntry: (entryId, updates) =>
+    set((state) => ({
+      entries: state.entries.map((e) =>
+        e.id === entryId ? { ...e, ...updates } : e
+      ),
+    })),
   removeEntry: (entryId) => {
-    devLog.action('Store: removeEntry', { entryId });
+    devLog.action("Store: removeEntry", { entryId });
     set((state) => ({
       entries: state.entries.filter((e) => e.id !== entryId),
-      stagedEntryIds: new Set([...state.stagedEntryIds].filter((id) => id !== entryId)),
+      stagedEntryIds: new Set(
+        [...state.stagedEntryIds].filter((id) => id !== entryId)
+      ),
     }));
   },
-  
+
   // Staging Actions
-  toggleStaging: (entryId) => set((state) => {
-    const newStaged = new Set(state.stagedEntryIds);
-    if (newStaged.has(entryId)) {
-      newStaged.delete(entryId);
-      devLog.action('Store: toggleStaging (unstage)', { entryId });
-    } else {
+  toggleStaging: (entryId) =>
+    set((state) => {
+      const newStaged = new Set(state.stagedEntryIds);
+      if (newStaged.has(entryId)) {
+        newStaged.delete(entryId);
+        devLog.action("Store: toggleStaging (unstage)", { entryId });
+      } else {
+        newStaged.add(entryId);
+        devLog.action("Store: toggleStaging (stage)", { entryId });
+      }
+      return { stagedEntryIds: newStaged };
+    }),
+  stageEntry: (entryId) =>
+    set((state) => {
+      devLog.action("Store: stageEntry", { entryId });
+      const newStaged = new Set(state.stagedEntryIds);
       newStaged.add(entryId);
-      devLog.action('Store: toggleStaging (stage)', { entryId });
-    }
-    return { stagedEntryIds: newStaged };
-  }),
-  stageEntry: (entryId) => set((state) => {
-    devLog.action('Store: stageEntry', { entryId });
-    const newStaged = new Set(state.stagedEntryIds);
-    newStaged.add(entryId);
-    return { stagedEntryIds: newStaged };
-  }),
-  unstageEntry: (entryId) => set((state) => {
-    devLog.action('Store: unstageEntry', { entryId });
-    const newStaged = new Set(state.stagedEntryIds);
-    newStaged.delete(entryId);
-    return { stagedEntryIds: newStaged };
-  }),
+      return { stagedEntryIds: newStaged };
+    }),
+  unstageEntry: (entryId) =>
+    set((state) => {
+      devLog.action("Store: unstageEntry", { entryId });
+      const newStaged = new Set(state.stagedEntryIds);
+      newStaged.delete(entryId);
+      return { stagedEntryIds: newStaged };
+    }),
   clearAllStaging: () => {
-    devLog.action('Store: clearAllStaging');
+    devLog.action("Store: clearAllStaging");
     set({ stagedEntryIds: new Set() });
   },
-  
+
   setPendingBlock: (block) => {
-    devLog.action('Store: setPendingBlock', { blockId: block?.id, bridgeKey: block?.bridgeKey });
+    devLog.action("Store: setPendingBlock", {
+      blockId: block?.id,
+      bridgeKey: block?.bridgeKey,
+    });
     set({ pendingBlock: block });
   },
-  
+
+  setLastCreatedEntryId: (id) => {
+    devLog.action("Store: setLastCreatedEntryId", { entryId: id });
+    set({ lastCreatedEntryId: id });
+  },
+
   // Search Actions
   setSearchOpen: (isOpen) => {
-    devLog.action('Store: setSearchOpen', { isOpen });
+    devLog.action("Store: setSearchOpen", { isOpen });
     set({ isSearchOpen: isOpen });
   },
   setSearchQuery: (query) => {
     if (query) devLog.search(query);
     set({ searchQuery: query });
   },
-  
+
   // Loading Actions
   setLoadingStreams: (loading) => set({ isLoadingStreams: loading }),
   setLoadingEntries: (loading) => set({ isLoadingEntries: loading }),

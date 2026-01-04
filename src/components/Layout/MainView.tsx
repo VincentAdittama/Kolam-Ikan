@@ -18,6 +18,7 @@ export function MainView() {
     isLoadingEntries,
     addEntry,
     setCurrentStream,
+    setLastCreatedEntryId,
   } = useAppStore();
 
   const { refetchStreams } = useStreamRefetch();
@@ -67,6 +68,7 @@ export function MainView() {
 
       devLog.apiSuccess('create_entry', { entryId: newEntry.id, sequenceId: newEntry.sequenceId });
       addEntry(newEntry);
+      setLastCreatedEntryId(newEntry.id);
       // Refetch streams to update entry counts
       refetchStreams();
     } catch (error) {

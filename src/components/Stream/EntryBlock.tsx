@@ -84,6 +84,8 @@ export function EntryBlock({ entry }: EntryBlockProps) {
     toggleStaging,
     updateEntry,
     removeEntry,
+    lastCreatedEntryId,
+    setLastCreatedEntryId,
   } = useAppStore();
 
   const { refetchStreams } = useStreamRefetch();
@@ -196,6 +198,16 @@ export function EntryBlock({ entry }: EntryBlockProps) {
       }
     }
   }, [editor, entry.content]);
+  
+  // Auto-focus if this is the last created entry
+  useEffect(() => {
+    if (editor && lastCreatedEntryId === entry.id) {
+      devLog.editorAction('Auto-focusing new entry', { entryId: entry.id });
+      editor.commands.focus();
+      // Clear the ID after focusing so it doesn't re-focus on every re-render
+      setLastCreatedEntryId(null);
+    }
+  }, [editor, lastCreatedEntryId, entry.id, setLastCreatedEntryId]);
 
   const handleDelete = async () => {
     devLog.deleteEntry(entry.id, entry.sequenceId);
