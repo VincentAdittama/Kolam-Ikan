@@ -22,6 +22,8 @@ import {
   Sparkles,
   FileDiff,
   CornerDownLeft,
+  ChevronDown,
+  ChevronRight,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -58,6 +60,7 @@ const lowlight = createLowlight(common);
 
 interface EntryBlockProps {
   entry: Entry;
+  isCompact?: boolean;
 }
 
 // Simple text extraction from JSON content for comparison
@@ -79,7 +82,7 @@ function extractTextFromContent(content: JSONContent): string {
   return lines.join('\n');
 }
 
-export function EntryBlock({ entry }: EntryBlockProps) {
+export function EntryBlock({ entry, isCompact = false }: EntryBlockProps) {
   const {
     stagedEntryIds,
     toggleStaging,
@@ -98,6 +101,13 @@ export function EntryBlock({ entry }: EntryBlockProps) {
     }
     return null;
   }, [entry.profile, entry.profileId, profiles]);
+
+  const [isCollapsed, setIsCollapsed] = useState(isCompact);
+  
+  // Sync collapsed state with prop
+  useEffect(() => {
+    setIsCollapsed(isCompact);
+  }, [isCompact]);
 
   const { refetchStreams } = useStreamRefetch();
   const [showVersionHistory, setShowVersionHistory] = useState(false);
@@ -315,6 +325,7 @@ export function EntryBlock({ entry }: EntryBlockProps) {
 
   return (
     <div
+      data-entry-id={entry.id}
       className={cn(
         'group relative rounded-lg border transition-all',
         isStaged && 'ring-2 ring-primary ring-offset-2',
@@ -322,13 +333,27 @@ export function EntryBlock({ entry }: EntryBlockProps) {
       )}
     >
       {/* Entry Header */}
-      <div className="flex items-center justify-between border-b px-4 py-2">
+      <div 
+        className="flex items-center justify-between border-b px-4 py-2 cursor-pointer hover:bg-accent/30 transition-colors"
+        onClick={(e) => {
+          // Prevent toggle if clicking on interactive elements
+          if ((e.target as HTMLElement).closest('button, [role="checkbox"], [data-state]')) {
+            return;
+          }
+          setIsCollapsed(!isCollapsed);
+        }}
+      >
         <div className="flex items-center gap-3">
           {/* Staging checkbox (only for user entries) */}
           <Checkbox
             checked={isStaged}
             onCheckedChange={handleToggleStaging}
           />
+
+          {/* Collapse Indicator */}
+          <div className="text-muted-foreground">
+             {isCollapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+          </div>
 
           {/* Avatar - Show ProfileBadge for user entries with profile selector */}
           {isUser ? (
@@ -583,25 +608,27 @@ export function EntryBlock({ entry }: EntryBlockProps) {
       </div>
 
       {/* Editor Toolbar (appears on focus) */}
-      {editor && <EditorToolbar editor={editor} />}
+      {!isCollapsed && editor && <EditorToolbar editor={editor} />}
 
       {/* Editor Content */}
-      <div className="px-4 py-3">
-        <EditorContent editor={editor} />
-        
-        {/* New line hint - appears when user stops typing */}
-        <div
-          className={cn(
-            "flex items-center gap-1.5 text-xs text-muted-foreground/70 transition-all duration-300 ease-out overflow-hidden",
-            showNewLineHint 
-              ? "max-h-6 opacity-100 mt-2 translate-y-0" 
-              : "max-h-0 opacity-0 mt-0 -translate-y-1"
-          )}
-        >
-          <CornerDownLeft className="h-3 w-3" />
-          <span>Press <kbd className="px-1 py-0.5 mx-0.5 text-[10px] font-medium bg-muted rounded border border-border/50">Enter</kbd> to add a new line</span>
+      {!isCollapsed && (
+        <div className="px-4 py-3">
+          <EditorContent editor={editor} />
+          
+          {/* New line hint - appears when user stops typing */}
+          <div
+            className={cn(
+              "flex items-center gap-1.5 text-xs text-muted-foreground/70 transition-all duration-300 ease-out overflow-hidden",
+              showNewLineHint 
+                ? "max-h-6 opacity-100 mt-2 translate-y-0" 
+                : "max-h-0 opacity-0 mt-0 -translate-y-1"
+            )}
+          >
+            <CornerDownLeft className="h-3 w-3" />
+            <span>Press <kbd className="px-1 py-0.5 mx-0.5 text-[10px] font-medium bg-muted rounded border border-border/50">Enter</kbd> to add a new line</span>
+          </div>
         </div>
-      </div>
+      )}
       
       {/* Version History Dialog */}
       <VersionHistoryDialog
