@@ -1,5 +1,49 @@
 use serde::{Deserialize, Serialize};
 
+// ============================================================
+// PROFILE TYPES
+// ============================================================
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct Profile {
+    pub id: String,
+    pub name: String,
+    pub role: String, // 'self' | 'friend' | 'reference' | 'ai'
+    pub avatar_url: Option<String>,
+    pub color: Option<String>,
+    pub initials: Option<String>,
+    pub bio: Option<String>,
+    pub is_default: bool,
+    pub created_at: i64,
+    pub updated_at: i64,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CreateProfileInput {
+    pub name: String,
+    pub role: String,
+    pub color: Option<String>,
+    pub initials: Option<String>,
+    pub bio: Option<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct UpdateProfileInput {
+    pub name: Option<String>,
+    pub role: Option<String>,
+    pub color: Option<String>,
+    pub initials: Option<String>,
+    pub bio: Option<String>,
+    pub avatar_url: Option<String>,
+}
+
+// ============================================================
+// STREAM TYPES
+// ============================================================
+
 #[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct Stream {
@@ -40,6 +84,7 @@ pub struct AiMetadata {
 pub struct Entry {
     pub id: String,
     pub stream_id: String,
+    pub profile_id: Option<String>,
     pub role: String,
     pub content: serde_json::Value,
     pub sequence_id: i32,
@@ -49,6 +94,9 @@ pub struct Entry {
     pub ai_metadata: Option<AiMetadata>,
     pub created_at: i64,
     pub updated_at: i64,
+    // Optional: Include profile data when fetched with join
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub profile: Option<Profile>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -98,6 +146,7 @@ pub struct CreateStreamInput {
 #[serde(rename_all = "camelCase")]
 pub struct CreateEntryInput {
     pub stream_id: String,
+    pub profile_id: Option<String>,
     pub role: String,
     pub content: serde_json::Value,
     pub ai_metadata: Option<AiMetadata>,

@@ -7,6 +7,7 @@ import type {
   DirectiveType,
   ModelType,
   PendingBlock,
+  Profile,
 } from "@/types";
 
 interface AppState {
@@ -17,6 +18,12 @@ interface AppState {
   sidebarVisible: boolean;
   rightPanelVisible: boolean;
   theme: "light" | "dark" | "system";
+
+  // Profile State
+  profiles: Profile[];
+  activeProfileId: string | null;
+  defaultProfile: Profile | null;
+  isLoadingProfiles: boolean;
 
   // Data State
   streams: StreamMetadata[];
@@ -62,6 +69,15 @@ interface AppState {
 
   setLoadingStreams: (loading: boolean) => void;
   setLoadingEntries: (loading: boolean) => void;
+
+  // Profile Actions
+  setProfiles: (profiles: Profile[]) => void;
+  addProfile: (profile: Profile) => void;
+  updateProfile: (profileId: string, updates: Partial<Profile>) => void;
+  removeProfile: (profileId: string) => void;
+  setActiveProfileId: (id: string | null) => void;
+  setDefaultProfile: (profile: Profile | null) => void;
+  setLoadingProfiles: (loading: boolean) => void;
 }
 
 export const useAppStore = create<AppState>((set) => ({
@@ -72,6 +88,12 @@ export const useAppStore = create<AppState>((set) => ({
   sidebarVisible: true,
   rightPanelVisible: true,
   theme: "system",
+
+  // Initial Profile State
+  profiles: [],
+  activeProfileId: null,
+  defaultProfile: null,
+  isLoadingProfiles: false,
 
   // Initial Data State
   streams: [],
@@ -219,4 +241,42 @@ export const useAppStore = create<AppState>((set) => ({
   // Loading Actions
   setLoadingStreams: (loading) => set({ isLoadingStreams: loading }),
   setLoadingEntries: (loading) => set({ isLoadingEntries: loading }),
+
+  // Profile Actions
+  setProfiles: (profiles) => {
+    devLog.action("Store: setProfiles", { count: profiles.length });
+    set({ profiles });
+  },
+  addProfile: (profile) => {
+    devLog.action("Store: addProfile", {
+      profileId: profile.id,
+      name: profile.name,
+    });
+    set((state) => ({
+      profiles: [...state.profiles, profile],
+    }));
+  },
+  updateProfile: (profileId, updates) => {
+    devLog.action("Store: updateProfile", { profileId, updates });
+    set((state) => ({
+      profiles: state.profiles.map((p) =>
+        p.id === profileId ? { ...p, ...updates } : p
+      ),
+    }));
+  },
+  removeProfile: (profileId) => {
+    devLog.action("Store: removeProfile", { profileId });
+    set((state) => ({
+      profiles: state.profiles.filter((p) => p.id !== profileId),
+    }));
+  },
+  setActiveProfileId: (id) => {
+    devLog.action("Store: setActiveProfileId", { profileId: id });
+    set({ activeProfileId: id });
+  },
+  setDefaultProfile: (profile) => {
+    devLog.action("Store: setDefaultProfile", { profileId: profile?.id });
+    set({ defaultProfile: profile, activeProfileId: profile?.id ?? null });
+  },
+  setLoadingProfiles: (loading) => set({ isLoadingProfiles: loading }),
 }));

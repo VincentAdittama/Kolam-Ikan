@@ -50,6 +50,7 @@ import {
 } from "@/services/bridge";
 import { SidebarBranchGraph } from "@/components/Branch/SidebarBranchGraph";
 import { FullscreenBranchGraph } from "@/components/Branch/FullscreenBranchGraph";
+import { ProfilePicker } from "@/components/Profile";
 import * as api from "@/services/api";
 
 type PanelTab = "context" | "branches";
@@ -95,6 +96,7 @@ export function RightPanel() {
     addEntry,
     setPendingBlock,
     pendingBlock,
+    setActiveProfileId,
   } = useAppStore();
 
   const { refetchStreams } = useStreamRefetch();
@@ -429,6 +431,23 @@ export function RightPanel() {
       {/* Context Tab */}
       {activeTab === "context" && (
         <>
+          {/* Profile Selector - Sets default profile for new entries */}
+          <div className="border-b p-4">
+            <div className="flex items-center justify-between">
+              <h3 className="text-sm font-medium">Active Profile</h3>
+              <span className="text-xs text-muted-foreground">for new entries</span>
+            </div>
+            <div className="mt-2">
+              <ProfilePicker
+                onProfileSelect={(profile) => {
+                  devLog.action("Set active profile", { profileId: profile.id, name: profile.name });
+                  setActiveProfileId(profile.id);
+                }}
+                showCreateButton={true}
+              />
+            </div>
+          </div>
+
           {/* Directive Selector */}
           <div className="border-b p-4">
             <h3 className="text-sm font-medium mb-3">Directive</h3>

@@ -5,6 +5,7 @@ import { Sidebar } from "@/components/Layout/Sidebar";
 import { MainView } from "@/components/Layout/MainView";
 import { RightPanel } from "@/components/Layout/RightPanel";
 import { useAppStore } from "@/store/appStore";
+import { useProfiles, useDefaultProfile } from "@/hooks/useQueries";
 import { cn } from "@/lib/utils";
 import "./App.css";
 import 'tippy.js/dist/tippy.css';
@@ -20,6 +21,10 @@ const queryClient = new QueryClient({
 
 function AppLayout() {
   const { sidebarVisible, rightPanelVisible, theme } = useAppStore();
+  
+  // Load profiles on app startup
+  useProfiles();
+  useDefaultProfile();
 
   useEffect(() => {
     const root = window.document.documentElement;

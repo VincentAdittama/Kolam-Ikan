@@ -2,8 +2,6 @@ import { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import Underline from '@tiptap/extension-underline';
-// Removed unused Link import
-// Removed unused Link import-list';
 import TaskList from '@tiptap/extension-task-list';
 import TaskItem from '@tiptap/extension-task-item';
 import Placeholder from '@tiptap/extension-placeholder';
@@ -34,7 +32,6 @@ import {
   DropdownMenuTrigger,
   DropdownMenuSeparator,
 } from '@/components/ui/dropdown-menu';
-// Removed unused Dialog imports
 import {
   Tooltip,
   TooltipContent,
@@ -43,9 +40,9 @@ import {
 import { cn, formatEntryTime, debounce } from '@/lib/utils';
 import { devLog } from '@/lib/devLogger';
 import { useAppStore } from '@/store/appStore';
-import { useLatestVersion } from '@/hooks/useQueries';
+import { useLatestVersion, useUpdateEntryProfile } from '@/hooks/useQueries';
 import { useStreamRefetch } from '@/hooks/useStreamRefetch';
-import type { Entry } from '@/types';
+import type { Entry, Profile } from '@/types';
 import type { JSONContent } from '@tiptap/react';
 import { getAIProviderIcon, getAIProviderColor } from '@/types';
 import * as api from '@/services/api';
@@ -53,6 +50,7 @@ import { contentToProseMirror } from '@/services/bridge';
 import { EditorToolbar } from './EditorToolbar';
 import { VersionHistoryDialog } from './VersionHistoryDialog';
 import { CommitDialog } from './CommitDialog';
+import { ProfileBadge } from '@/components/Profile';
 
 import { SlashCommand } from '@/components/Editor/SlashCommand';
 
@@ -89,7 +87,17 @@ export function EntryBlock({ entry }: EntryBlockProps) {
     removeEntry,
     lastCreatedEntryId,
     setLastCreatedEntryId,
+    profiles,
   } = useAppStore();
+
+  // Get profile for this entry
+  const entryProfile = useMemo(() => {
+    if (entry.profile) return entry.profile;
+    if (entry.profileId) {
+      return profiles.find(p => p.id === entry.profileId);
+    }
+    return null;
+  }, [entry.profile, entry.profileId, profiles]);
 
   const { refetchStreams } = useStreamRefetch();
   const [showVersionHistory, setShowVersionHistory] = useState(false);
@@ -98,11 +106,20 @@ export function EntryBlock({ entry }: EntryBlockProps) {
   const [isFocused, setIsFocused] = useState(false);
   const idleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   
+  // Hook for updating entry profile
+  const updateEntryProfile = useUpdateEntryProfile();
+  
   // Fetch latest version to check for uncommitted changes
   const { data: latestVersion } = useLatestVersion(entry.id);
 
   const isStaged = stagedEntryIds.has(entry.id);
   const isUser = entry.role === 'user';
+  
+  // Handle profile change for this entry
+  const handleProfileChange = useCallback((profileId: string | null) => {
+    devLog.action('Change entry profile', { entryId: entry.id, profileId });
+    updateEntryProfile.mutate({ entryId: entry.id, profileId });
+  }, [entry.id, updateEntryProfile]);
   
   // Check if there are uncommitted changes
   const hasUncommittedChanges = useMemo(() => {
@@ -315,11 +332,53 @@ export function EntryBlock({ entry }: EntryBlockProps) {
             />
           )}
 
-          {/* Avatar */}
+          {/* Avatar - Show ProfileBadge for user entries with profile selector */}
           {isUser ? (
-            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary text-primary-foreground">
-              <User className="h-4 w-4" />
-            </div>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button className="flex items-center gap-2 hover:opacity-80 transition-opacity cursor-pointer">
+                  {entryProfile ? (
+                    <ProfileBadge profile={entryProfile} size="md" showName showRole />
+                  ) : (
+                    <div className="flex items-center gap-2">
+                      <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary text-primary-foreground">
+                        <User className="h-4 w-4" />
+                      </div>
+                      <span className="text-sm text-muted-foreground">Assign profile</span>
+                    </div>
+                  )}
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start" className="w-56">
+                {profiles.map((profile: Profile) => (
+                  <DropdownMenuItem
+                    key={profile.id}
+                    onClick={() => handleProfileChange(profile.id)}
+                    className="flex items-center gap-2 cursor-pointer"
+                  >
+                    <ProfileBadge profile={profile} size="sm" />
+                    <div className="flex flex-col flex-1">
+                      <span className="text-sm font-medium">{profile.name}</span>
+                      <span className="text-xs text-muted-foreground capitalize">{profile.role}</span>
+                    </div>
+                    {profile.id === entry.profileId && (
+                      <span className="text-primary">✓</span>
+                    )}
+                  </DropdownMenuItem>
+                ))}
+                {entry.profileId && (
+                  <>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem
+                      onClick={() => handleProfileChange(null)}
+                      className="text-muted-foreground cursor-pointer"
+                    >
+                      Remove profile assignment
+                    </DropdownMenuItem>
+                  </>
+                )}
+              </DropdownMenuContent>
+            </DropdownMenu>
           ) : (
             <Tooltip>
               <TooltipTrigger asChild>
@@ -335,7 +394,7 @@ export function EntryBlock({ entry }: EntryBlockProps) {
                       src={getAIProviderIcon(entry.aiMetadata.provider)} 
                       alt={entry.aiMetadata.provider}
                       className="h-5 w-5 object-contain"
-                      style={{ filter: 'brightness(0)' }} // Ensure it's black for consistent look on brand colors
+                      style={{ filter: 'brightness(0)' }}
                     />
                   ) : (
                     <Bot className="h-4 w-4" />

@@ -1,4 +1,4 @@
-use rusqlite::{Connection, Result, params};
+use rusqlite::{params, Connection, Result};
 use std::path::PathBuf;
 use std::sync::Mutex;
 
@@ -9,13 +9,13 @@ pub struct Database {
 impl Database {
     pub fn new(app_data_dir: PathBuf) -> Result<Self> {
         std::fs::create_dir_all(&app_data_dir).expect("Failed to create app data directory");
-        
+
         let db_path = app_data_dir.join("kolam_ikan.db");
         let conn = Connection::open(&db_path)?;
-        
+
         // Initialize schema
         Self::initialize_schema(&conn)?;
-        
+
         Ok(Self {
             conn: Mutex::new(conn),
         })
@@ -36,10 +36,25 @@ impl Database {
                 updated_at INTEGER NOT NULL
             );
 
+            -- PROFILES (Authors/Personas)
+            CREATE TABLE IF NOT EXISTS profiles (
+                id TEXT PRIMARY KEY,
+                name TEXT NOT NULL,
+                role TEXT CHECK(role IN ('self', 'friend', 'reference', 'ai')) NOT NULL,
+                avatar_url TEXT,
+                color TEXT,
+                initials TEXT,
+                bio TEXT,
+                is_default INTEGER DEFAULT 0,
+                created_at INTEGER NOT NULL,
+                updated_at INTEGER NOT NULL
+            );
+
             -- ENTRIES (The "Blocks")
             CREATE TABLE IF NOT EXISTS entries (
                 id TEXT PRIMARY KEY,
                 stream_id TEXT NOT NULL,
+                profile_id TEXT,
                 role TEXT CHECK(role IN ('user', 'ai')) NOT NULL,
                 content TEXT NOT NULL,
                 sequence_id INTEGER NOT NULL,
@@ -49,7 +64,8 @@ impl Database {
                 ai_metadata TEXT,
                 created_at INTEGER NOT NULL,
                 updated_at INTEGER NOT NULL,
-                FOREIGN KEY(stream_id) REFERENCES streams(id) ON DELETE CASCADE
+                FOREIGN KEY(stream_id) REFERENCES streams(id) ON DELETE CASCADE,
+                FOREIGN KEY(profile_id) REFERENCES profiles(id) ON DELETE SET NULL
             );
 
             -- VERSIONS (The "Commits")
@@ -85,7 +101,7 @@ impl Database {
                 FOREIGN KEY(stream_id) REFERENCES streams(id) ON DELETE CASCADE
             );
 
-            -- Indexes for performance
+            -- Indexes for performance (excluding profile_id which is added in migration)
             CREATE INDEX IF NOT EXISTS idx_entries_stream_id ON entries(stream_id);
             CREATE INDEX IF NOT EXISTS idx_entries_sequence ON entries(stream_id, sequence_id);
             CREATE INDEX IF NOT EXISTS idx_entry_versions_entry_id ON entry_versions(entry_id);
@@ -93,23 +109,46 @@ impl Database {
             "#,
         )?;
 
+        // Run migrations for existing databases BEFORE creating profile-related indexes
+        Self::run_migrations(conn)?;
+
+        Ok(())
+    }
+
+    fn run_migrations(conn: &Connection) -> Result<()> {
+        // Check if profile_id column exists in entries
+        let has_profile_id: bool = conn
+            .prepare("SELECT 1 FROM pragma_table_info('entries') WHERE name = 'profile_id'")?
+            .exists([])?;
+
+        if !has_profile_id {
+            // Migration: Add profile_id column to existing entries table
+            conn.execute(
+                "ALTER TABLE entries ADD COLUMN profile_id TEXT REFERENCES profiles(id) ON DELETE SET NULL",
+                [],
+            ).ok(); // Ignore errors if column already exists
+        }
+
+        // Now create the index (column will exist either from schema or migration)
+        conn.execute(
+            "CREATE INDEX IF NOT EXISTS idx_entries_profile_id ON entries(profile_id)",
+            [],
+        )
+        .ok();
+
         Ok(())
     }
 
     pub fn create_tutorial_stream(&self) -> Result<()> {
         let conn = self.conn.lock().unwrap();
-        
+
         // Check if any streams exist
-        let count: i64 = conn.query_row(
-            "SELECT COUNT(*) FROM streams",
-            [],
-            |row| row.get(0),
-        )?;
+        let count: i64 = conn.query_row("SELECT COUNT(*) FROM streams", [], |row| row.get(0))?;
 
         if count == 0 {
             let now = chrono::Utc::now().timestamp_millis();
             let stream_id = uuid::Uuid::new_v4().to_string();
-            
+
             // Create welcome stream
             conn.execute(
                 "INSERT INTO streams (id, title, description, tags, pinned, created_at, updated_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",

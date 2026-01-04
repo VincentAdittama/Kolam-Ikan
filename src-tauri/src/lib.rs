@@ -28,16 +28,25 @@ pub fn run() {
 
             // Initialize database
             let db = Database::new(app_data_dir).expect("Failed to initialize database");
-            
+
             // Create tutorial stream on first run
-            db.create_tutorial_stream().expect("Failed to create tutorial stream");
-            
+            db.create_tutorial_stream()
+                .expect("Failed to create tutorial stream");
+
             // Manage database state
             app.manage(db);
 
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
+            // Profile commands
+            commands::create_profile,
+            commands::get_all_profiles,
+            commands::get_profile,
+            commands::update_profile,
+            commands::delete_profile,
+            commands::get_default_profile,
+            commands::get_profile_entry_count,
             // Stream commands
             commands::create_stream,
             commands::get_all_streams,
@@ -47,6 +56,7 @@ pub fn run() {
             // Entry commands
             commands::create_entry,
             commands::update_entry_content,
+            commands::update_entry_profile,
             commands::toggle_entry_staging,
             commands::delete_entry,
             commands::get_staged_entries,
@@ -70,4 +80,3 @@ pub fn run() {
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }
-

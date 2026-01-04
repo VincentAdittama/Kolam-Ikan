@@ -4,20 +4,316 @@ use rusqlite::params;
 use tauri::State;
 
 // ============================================================
+// PROFILE COMMANDS
+// ============================================================
+
+#[tauri::command]
+pub fn create_profile(db: State<Database>, input: CreateProfileInput) -> Result<Profile, String> {
+    let conn = db.conn.lock().map_err(|e| e.to_string())?;
+    let now = chrono::Utc::now().timestamp_millis();
+    let id = uuid::Uuid::new_v4().to_string();
+
+    // Generate initials if not provided
+    let initials = input.initials.unwrap_or_else(|| {
+        input
+            .name
+            .split_whitespace()
+            .filter_map(|word| word.chars().next())
+            .take(2)
+            .collect::<String>()
+            .to_uppercase()
+    });
+
+    conn.execute(
+        "INSERT INTO profiles (id, name, role, color, initials, bio, is_default, created_at, updated_at) 
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)",
+        params![
+            id,
+            input.name,
+            input.role,
+            input.color,
+            initials,
+            input.bio,
+            0, // is_default = false
+            now,
+            now
+        ],
+    )
+    .map_err(|e| e.to_string())?;
+
+    Ok(Profile {
+        id,
+        name: input.name,
+        role: input.role,
+        avatar_url: None,
+        color: input.color,
+        initials: Some(initials),
+        bio: input.bio,
+        is_default: false,
+        created_at: now,
+        updated_at: now,
+    })
+}
+
+#[tauri::command]
+pub fn get_all_profiles(db: State<Database>) -> Result<Vec<Profile>, String> {
+    let conn = db.conn.lock().map_err(|e| e.to_string())?;
+
+    let mut stmt = conn
+        .prepare(
+            "SELECT id, name, role, avatar_url, color, initials, bio, is_default, created_at, updated_at 
+             FROM profiles 
+             ORDER BY is_default DESC, name ASC",
+        )
+        .map_err(|e| e.to_string())?;
+
+    let profiles = stmt
+        .query_map([], |row| {
+            Ok(Profile {
+                id: row.get(0)?,
+                name: row.get(1)?,
+                role: row.get(2)?,
+                avatar_url: row.get(3)?,
+                color: row.get(4)?,
+                initials: row.get(5)?,
+                bio: row.get(6)?,
+                is_default: row.get::<_, i32>(7)? != 0,
+                created_at: row.get(8)?,
+                updated_at: row.get(9)?,
+            })
+        })
+        .map_err(|e| e.to_string())?
+        .collect::<Result<Vec<_>, _>>()
+        .map_err(|e| e.to_string())?;
+
+    Ok(profiles)
+}
+
+#[tauri::command]
+pub fn get_profile(db: State<Database>, profile_id: String) -> Result<Option<Profile>, String> {
+    let conn = db.conn.lock().map_err(|e| e.to_string())?;
+
+    let result = conn.query_row(
+        "SELECT id, name, role, avatar_url, color, initials, bio, is_default, created_at, updated_at 
+         FROM profiles 
+         WHERE id = ?1",
+        params![profile_id],
+        |row| {
+            Ok(Profile {
+                id: row.get(0)?,
+                name: row.get(1)?,
+                role: row.get(2)?,
+                avatar_url: row.get(3)?,
+                color: row.get(4)?,
+                initials: row.get(5)?,
+                bio: row.get(6)?,
+                is_default: row.get::<_, i32>(7)? != 0,
+                created_at: row.get(8)?,
+                updated_at: row.get(9)?,
+            })
+        },
+    );
+
+    match result {
+        Ok(profile) => Ok(Some(profile)),
+        Err(rusqlite::Error::QueryReturnedNoRows) => Ok(None),
+        Err(e) => Err(e.to_string()),
+    }
+}
+
+#[tauri::command]
+pub fn update_profile(
+    db: State<Database>,
+    profile_id: String,
+    input: UpdateProfileInput,
+) -> Result<(), String> {
+    let conn = db.conn.lock().map_err(|e| e.to_string())?;
+    let now = chrono::Utc::now().timestamp_millis();
+
+    if let Some(name) = input.name {
+        conn.execute(
+            "UPDATE profiles SET name = ?1, updated_at = ?2 WHERE id = ?3",
+            params![name, now, profile_id],
+        )
+        .map_err(|e| e.to_string())?;
+    }
+
+    if let Some(role) = input.role {
+        conn.execute(
+            "UPDATE profiles SET role = ?1, updated_at = ?2 WHERE id = ?3",
+            params![role, now, profile_id],
+        )
+        .map_err(|e| e.to_string())?;
+    }
+
+    if let Some(color) = input.color {
+        conn.execute(
+            "UPDATE profiles SET color = ?1, updated_at = ?2 WHERE id = ?3",
+            params![color, now, profile_id],
+        )
+        .map_err(|e| e.to_string())?;
+    }
+
+    if let Some(initials) = input.initials {
+        conn.execute(
+            "UPDATE profiles SET initials = ?1, updated_at = ?2 WHERE id = ?3",
+            params![initials, now, profile_id],
+        )
+        .map_err(|e| e.to_string())?;
+    }
+
+    if let Some(bio) = input.bio {
+        conn.execute(
+            "UPDATE profiles SET bio = ?1, updated_at = ?2 WHERE id = ?3",
+            params![bio, now, profile_id],
+        )
+        .map_err(|e| e.to_string())?;
+    }
+
+    if let Some(avatar_url) = input.avatar_url {
+        conn.execute(
+            "UPDATE profiles SET avatar_url = ?1, updated_at = ?2 WHERE id = ?3",
+            params![avatar_url, now, profile_id],
+        )
+        .map_err(|e| e.to_string())?;
+    }
+
+    Ok(())
+}
+
+#[tauri::command]
+pub fn delete_profile(db: State<Database>, profile_id: String) -> Result<(), String> {
+    let conn = db.conn.lock().map_err(|e| e.to_string())?;
+
+    // Check if this is the default profile
+    let is_default: i32 = conn
+        .query_row(
+            "SELECT is_default FROM profiles WHERE id = ?1",
+            params![profile_id],
+            |row| row.get(0),
+        )
+        .map_err(|e| e.to_string())?;
+
+    if is_default != 0 {
+        return Err("Cannot delete the default profile".to_string());
+    }
+
+    // Check if profile has entries
+    let entry_count: i64 = conn
+        .query_row(
+            "SELECT COUNT(*) FROM entries WHERE profile_id = ?1",
+            params![profile_id],
+            |row| row.get(0),
+        )
+        .map_err(|e| e.to_string())?;
+
+    if entry_count > 0 {
+        return Err(format!(
+            "Cannot delete profile with {} associated entries. Reassign entries first.",
+            entry_count
+        ));
+    }
+
+    conn.execute("DELETE FROM profiles WHERE id = ?1", params![profile_id])
+        .map_err(|e| e.to_string())?;
+
+    Ok(())
+}
+
+#[tauri::command]
+pub fn get_default_profile(db: State<Database>) -> Result<Profile, String> {
+    let conn = db.conn.lock().map_err(|e| e.to_string())?;
+
+    // Try to get existing default profile
+    let result = conn.query_row(
+        "SELECT id, name, role, avatar_url, color, initials, bio, is_default, created_at, updated_at 
+         FROM profiles 
+         WHERE is_default = 1
+         LIMIT 1",
+        [],
+        |row| {
+            Ok(Profile {
+                id: row.get(0)?,
+                name: row.get(1)?,
+                role: row.get(2)?,
+                avatar_url: row.get(3)?,
+                color: row.get(4)?,
+                initials: row.get(5)?,
+                bio: row.get(6)?,
+                is_default: true,
+                created_at: row.get(8)?,
+                updated_at: row.get(9)?,
+            })
+        },
+    );
+
+    match result {
+        Ok(profile) => Ok(profile),
+        Err(rusqlite::Error::QueryReturnedNoRows) => {
+            // Create default profile
+            let now = chrono::Utc::now().timestamp_millis();
+            let id = uuid::Uuid::new_v4().to_string();
+
+            conn.execute(
+                "INSERT INTO profiles (id, name, role, color, initials, bio, is_default, created_at, updated_at) 
+                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)",
+                params![
+                    id,
+                    "You",
+                    "self",
+                    "#3B82F6", // Blue
+                    "ME",
+                    None::<String>,
+                    1, // is_default = true
+                    now,
+                    now
+                ],
+            )
+            .map_err(|e| e.to_string())?;
+
+            Ok(Profile {
+                id,
+                name: "You".to_string(),
+                role: "self".to_string(),
+                avatar_url: None,
+                color: Some("#3B82F6".to_string()),
+                initials: Some("ME".to_string()),
+                bio: None,
+                is_default: true,
+                created_at: now,
+                updated_at: now,
+            })
+        }
+        Err(e) => Err(e.to_string()),
+    }
+}
+
+#[tauri::command]
+pub fn get_profile_entry_count(db: State<Database>, profile_id: String) -> Result<i64, String> {
+    let conn = db.conn.lock().map_err(|e| e.to_string())?;
+
+    let count: i64 = conn
+        .query_row(
+            "SELECT COUNT(*) FROM entries WHERE profile_id = ?1",
+            params![profile_id],
+            |row| row.get(0),
+        )
+        .map_err(|e| e.to_string())?;
+
+    Ok(count)
+}
+
+// ============================================================
 // STREAM COMMANDS
 // ============================================================
 
 #[tauri::command]
-pub fn create_stream(
-    db: State<Database>,
-    input: CreateStreamInput,
-) -> Result<Stream, String> {
+pub fn create_stream(db: State<Database>, input: CreateStreamInput) -> Result<Stream, String> {
     let conn = db.conn.lock().map_err(|e| e.to_string())?;
     let now = chrono::Utc::now().timestamp_millis();
     let id = uuid::Uuid::new_v4().to_string();
     let tags = input.tags.unwrap_or_default();
-    let tags_json = serde_json::to_string(&tags)
-        .map_err(|e| e.to_string())?;
+    let tags_json = serde_json::to_string(&tags).map_err(|e| e.to_string())?;
 
     conn.execute(
         "INSERT INTO streams (id, title, description, tags, color, pinned, created_at, updated_at) 
@@ -71,7 +367,7 @@ pub fn get_all_streams(db: State<Database>) -> Result<Vec<StreamMetadata>, Strin
             let tags: Vec<String> = tags_str
                 .and_then(|s| serde_json::from_str(&s).ok())
                 .unwrap_or_default();
-            
+
             Ok(StreamMetadata {
                 id: row.get(0)?,
                 title: row.get(1)?,
@@ -107,7 +403,7 @@ pub fn get_stream_details(
                 let tags: Vec<String> = tags_str
                     .and_then(|s| serde_json::from_str(&s).ok())
                     .unwrap_or_default();
-                
+
                 Ok(Stream {
                     id: row.get(0)?,
                     title: row.get(1)?,
@@ -125,7 +421,7 @@ pub fn get_stream_details(
     // Get entries
     let mut stmt = conn
         .prepare(
-            "SELECT id, stream_id, role, content, sequence_id, version_head, is_staged, 
+            "SELECT id, stream_id, profile_id, role, content, sequence_id, version_head, is_staged, 
                     parent_context_ids, ai_metadata, created_at, updated_at 
              FROM entries 
              WHERE stream_id = ?1 
@@ -135,27 +431,29 @@ pub fn get_stream_details(
 
     let entries = stmt
         .query_map(params![stream_id], |row| {
-            let content_str: String = row.get(3)?;
+            let content_str: String = row.get(4)?;
             let content: serde_json::Value = serde_json::from_str(&content_str).unwrap_or_default();
-            let parent_ids_str: Option<String> = row.get(7)?;
-            let parent_context_ids: Option<Vec<String>> = parent_ids_str
-                .and_then(|s| serde_json::from_str(&s).ok());
-            let ai_metadata_str: Option<String> = row.get(8)?;
-            let ai_metadata: Option<AiMetadata> = ai_metadata_str
-                .and_then(|s| serde_json::from_str(&s).ok());
+            let parent_ids_str: Option<String> = row.get(8)?;
+            let parent_context_ids: Option<Vec<String>> =
+                parent_ids_str.and_then(|s| serde_json::from_str(&s).ok());
+            let ai_metadata_str: Option<String> = row.get(9)?;
+            let ai_metadata: Option<AiMetadata> =
+                ai_metadata_str.and_then(|s| serde_json::from_str(&s).ok());
 
             Ok(Entry {
                 id: row.get(0)?,
                 stream_id: row.get(1)?,
-                role: row.get(2)?,
+                profile_id: row.get(2)?,
+                role: row.get(3)?,
                 content,
-                sequence_id: row.get(4)?,
-                version_head: row.get(5)?,
-                is_staged: row.get::<_, i32>(6)? != 0,
+                sequence_id: row.get(5)?,
+                version_head: row.get(6)?,
+                is_staged: row.get::<_, i32>(7)? != 0,
                 parent_context_ids,
                 ai_metadata,
-                created_at: row.get(9)?,
-                updated_at: row.get(10)?,
+                created_at: row.get(10)?,
+                updated_at: row.get(11)?,
+                profile: None,
             })
         })
         .map_err(|e| e.to_string())?
@@ -234,21 +532,25 @@ pub fn create_entry(db: State<Database>, input: CreateEntryInput) -> Result<Entr
 
     let sequence_id = max_seq + 1;
     let content_str = serde_json::to_string(&input.content).map_err(|e| e.to_string())?;
-    let ai_metadata_str = input.ai_metadata.as_ref()
+    let ai_metadata_str = input
+        .ai_metadata
+        .as_ref()
         .map(|m| serde_json::to_string(m))
         .transpose()
         .map_err(|e| e.to_string())?;
-    
+
     // Serialize parent_context_ids if provided
-    let parent_context_ids_str = input.parent_context_ids.as_ref()
+    let parent_context_ids_str = input
+        .parent_context_ids
+        .as_ref()
         .map(|ids| serde_json::to_string(ids))
         .transpose()
         .map_err(|e| e.to_string())?;
 
     conn.execute(
-        "INSERT INTO entries (id, stream_id, role, content, sequence_id, version_head, is_staged, parent_context_ids, ai_metadata, created_at, updated_at) 
-         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)",
-        params![id, input.stream_id, input.role, content_str, sequence_id, 0, 0, parent_context_ids_str, ai_metadata_str, now, now],
+        "INSERT INTO entries (id, stream_id, profile_id, role, content, sequence_id, version_head, is_staged, parent_context_ids, ai_metadata, created_at, updated_at) 
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12)",
+        params![id, input.stream_id, input.profile_id, input.role, content_str, sequence_id, 0, 0, parent_context_ids_str, ai_metadata_str, now, now],
     )
     .map_err(|e| e.to_string())?;
 
@@ -262,6 +564,7 @@ pub fn create_entry(db: State<Database>, input: CreateEntryInput) -> Result<Entr
     Ok(Entry {
         id,
         stream_id: input.stream_id,
+        profile_id: input.profile_id,
         role: input.role,
         content: input.content,
         sequence_id,
@@ -271,6 +574,7 @@ pub fn create_entry(db: State<Database>, input: CreateEntryInput) -> Result<Entr
         ai_metadata: input.ai_metadata,
         created_at: now,
         updated_at: now,
+        profile: None,
     })
 }
 
@@ -319,6 +623,24 @@ pub fn toggle_entry_staging(
 }
 
 #[tauri::command]
+pub fn update_entry_profile(
+    db: State<Database>,
+    entry_id: String,
+    profile_id: Option<String>,
+) -> Result<(), String> {
+    let conn = db.conn.lock().map_err(|e| e.to_string())?;
+    let now = chrono::Utc::now().timestamp_millis();
+
+    conn.execute(
+        "UPDATE entries SET profile_id = ?1, updated_at = ?2 WHERE id = ?3",
+        params![profile_id, now, entry_id],
+    )
+    .map_err(|e| e.to_string())?;
+
+    Ok(())
+}
+
+#[tauri::command]
 pub fn delete_entry(db: State<Database>, entry_id: String) -> Result<(), String> {
     let conn = db.conn.lock().map_err(|e| e.to_string())?;
 
@@ -334,7 +656,7 @@ pub fn get_staged_entries(db: State<Database>, stream_id: String) -> Result<Vec<
 
     let mut stmt = conn
         .prepare(
-            "SELECT id, stream_id, role, content, sequence_id, version_head, is_staged, 
+            "SELECT id, stream_id, profile_id, role, content, sequence_id, version_head, is_staged, 
                     parent_context_ids, ai_metadata, created_at, updated_at 
              FROM entries 
              WHERE stream_id = ?1 AND is_staged = 1
@@ -344,27 +666,29 @@ pub fn get_staged_entries(db: State<Database>, stream_id: String) -> Result<Vec<
 
     let entries = stmt
         .query_map(params![stream_id], |row| {
-            let content_str: String = row.get(3)?;
+            let content_str: String = row.get(4)?;
             let content: serde_json::Value = serde_json::from_str(&content_str).unwrap_or_default();
-            let parent_ids_str: Option<String> = row.get(7)?;
-            let parent_context_ids: Option<Vec<String>> = parent_ids_str
-                .and_then(|s| serde_json::from_str(&s).ok());
-            let ai_metadata_str: Option<String> = row.get(8)?;
-            let ai_metadata: Option<AiMetadata> = ai_metadata_str
-                .and_then(|s| serde_json::from_str(&s).ok());
+            let parent_ids_str: Option<String> = row.get(8)?;
+            let parent_context_ids: Option<Vec<String>> =
+                parent_ids_str.and_then(|s| serde_json::from_str(&s).ok());
+            let ai_metadata_str: Option<String> = row.get(9)?;
+            let ai_metadata: Option<AiMetadata> =
+                ai_metadata_str.and_then(|s| serde_json::from_str(&s).ok());
 
             Ok(Entry {
                 id: row.get(0)?,
                 stream_id: row.get(1)?,
-                role: row.get(2)?,
+                profile_id: row.get(2)?,
+                role: row.get(3)?,
                 content,
-                sequence_id: row.get(4)?,
-                version_head: row.get(5)?,
+                sequence_id: row.get(5)?,
+                version_head: row.get(6)?,
                 is_staged: true,
                 parent_context_ids,
                 ai_metadata,
-                created_at: row.get(9)?,
-                updated_at: row.get(10)?,
+                created_at: row.get(10)?,
+                updated_at: row.get(11)?,
+                profile: None,
             })
         })
         .map_err(|e| e.to_string())?
@@ -440,7 +764,10 @@ pub fn commit_entry_version(
 }
 
 #[tauri::command]
-pub fn get_entry_versions(db: State<Database>, entry_id: String) -> Result<Vec<EntryVersion>, String> {
+pub fn get_entry_versions(
+    db: State<Database>,
+    entry_id: String,
+) -> Result<Vec<EntryVersion>, String> {
     let conn = db.conn.lock().map_err(|e| e.to_string())?;
 
     let mut stmt = conn
@@ -474,7 +801,10 @@ pub fn get_entry_versions(db: State<Database>, entry_id: String) -> Result<Vec<E
 }
 
 #[tauri::command]
-pub fn get_latest_version(db: State<Database>, entry_id: String) -> Result<Option<EntryVersion>, String> {
+pub fn get_latest_version(
+    db: State<Database>,
+    entry_id: String,
+) -> Result<Option<EntryVersion>, String> {
     let conn = db.conn.lock().map_err(|e| e.to_string())?;
 
     let result = conn.query_row(
@@ -586,26 +916,27 @@ pub fn generate_bridge_key() -> String {
 #[tauri::command]
 pub fn validate_bridge_key(input_text: String, expected_key: String) -> bool {
     // Robust regex to handle HTML entities
-    let pattern = regex::Regex::new(
-        r#"(?:<|&lt;)!-{2}\s*bridge\s*:\s*([a-zA-Z0-9]+)\s*-{2}(?:>|&gt;)"#
-    ).unwrap();
-    
+    let pattern =
+        regex::Regex::new(r#"(?:<|&lt;)!-{2}\s*bridge\s*:\s*([a-zA-Z0-9]+)\s*-{2}(?:>|&gt;)"#)
+            .unwrap();
+
     if let Some(captures) = pattern.captures(&input_text) {
         if let Some(found_key) = captures.get(1) {
             return found_key.as_str().to_lowercase() == expected_key.to_lowercase();
         }
     }
-    
+
     false
 }
 
 #[tauri::command]
 pub fn extract_bridge_key(input_text: String) -> Option<String> {
-    let pattern = regex::Regex::new(
-        r#"(?:<|&lt;)!-{2}\s*bridge\s*:\s*([a-zA-Z0-9]+)\s*-{2}(?:>|&gt;)"#
-    ).unwrap();
-    
-    pattern.captures(&input_text)
+    let pattern =
+        regex::Regex::new(r#"(?:<|&lt;)!-{2}\s*bridge\s*:\s*([a-zA-Z0-9]+)\s*-{2}(?:>|&gt;)"#)
+            .unwrap();
+
+    pattern
+        .captures(&input_text)
         .and_then(|c| c.get(1))
         .map(|m| m.as_str().to_lowercase())
 }
@@ -641,7 +972,10 @@ pub fn create_pending_block(
 }
 
 #[tauri::command]
-pub fn get_pending_block(db: State<Database>, stream_id: String) -> Result<Option<PendingBlock>, String> {
+pub fn get_pending_block(
+    db: State<Database>,
+    stream_id: String,
+) -> Result<Option<PendingBlock>, String> {
     let conn = db.conn.lock().map_err(|e| e.to_string())?;
 
     let result = conn.query_row(
@@ -653,7 +987,8 @@ pub fn get_pending_block(db: State<Database>, stream_id: String) -> Result<Optio
         params![stream_id],
         |row| {
             let context_ids_str: String = row.get(3)?;
-            let staged_context_ids: Vec<String> = serde_json::from_str(&context_ids_str).unwrap_or_default();
+            let staged_context_ids: Vec<String> =
+                serde_json::from_str(&context_ids_str).unwrap_or_default();
 
             Ok(PendingBlock {
                 id: row.get(0)?,
@@ -697,7 +1032,7 @@ pub fn search_entries(db: State<Database>, query: String) -> Result<Vec<Entry>, 
 
     let mut stmt = conn
         .prepare(
-            "SELECT id, stream_id, role, content, sequence_id, version_head, is_staged, 
+            "SELECT id, stream_id, profile_id, role, content, sequence_id, version_head, is_staged, 
                     parent_context_ids, ai_metadata, created_at, updated_at 
              FROM entries 
              WHERE content LIKE ?1
@@ -708,27 +1043,29 @@ pub fn search_entries(db: State<Database>, query: String) -> Result<Vec<Entry>, 
 
     let entries = stmt
         .query_map(params![search_pattern], |row| {
-            let content_str: String = row.get(3)?;
+            let content_str: String = row.get(4)?;
             let content: serde_json::Value = serde_json::from_str(&content_str).unwrap_or_default();
-            let parent_ids_str: Option<String> = row.get(7)?;
-            let parent_context_ids: Option<Vec<String>> = parent_ids_str
-                .and_then(|s| serde_json::from_str(&s).ok());
-            let ai_metadata_str: Option<String> = row.get(8)?;
-            let ai_metadata: Option<AiMetadata> = ai_metadata_str
-                .and_then(|s| serde_json::from_str(&s).ok());
+            let parent_ids_str: Option<String> = row.get(8)?;
+            let parent_context_ids: Option<Vec<String>> =
+                parent_ids_str.and_then(|s| serde_json::from_str(&s).ok());
+            let ai_metadata_str: Option<String> = row.get(9)?;
+            let ai_metadata: Option<AiMetadata> =
+                ai_metadata_str.and_then(|s| serde_json::from_str(&s).ok());
 
             Ok(Entry {
                 id: row.get(0)?,
                 stream_id: row.get(1)?,
-                role: row.get(2)?,
+                profile_id: row.get(2)?,
+                role: row.get(3)?,
                 content,
-                sequence_id: row.get(4)?,
-                version_head: row.get(5)?,
-                is_staged: row.get::<_, i32>(6)? != 0,
+                sequence_id: row.get(5)?,
+                version_head: row.get(6)?,
+                is_staged: row.get::<_, i32>(7)? != 0,
                 parent_context_ids,
                 ai_metadata,
-                created_at: row.get(9)?,
-                updated_at: row.get(10)?,
+                created_at: row.get(10)?,
+                updated_at: row.get(11)?,
+                profile: None,
             })
         })
         .map_err(|e| e.to_string())?

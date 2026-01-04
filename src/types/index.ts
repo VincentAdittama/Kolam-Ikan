@@ -18,6 +18,66 @@ export type AIProvider =
   | "other";
 
 // ============================================================
+// PROFILE TYPES
+// ============================================================
+
+export type ProfileRole = "self" | "friend" | "reference" | "ai";
+
+export interface Profile {
+  id: string;
+  name: string;
+  role: ProfileRole;
+  avatarUrl?: string;
+  color?: string;
+  initials?: string;
+  bio?: string;
+  isDefault: boolean;
+  createdAt: number;
+  updatedAt: number;
+}
+
+export interface CreateProfileInput {
+  name: string;
+  role: ProfileRole;
+  color?: string;
+  initials?: string;
+  bio?: string;
+}
+
+export interface UpdateProfileInput {
+  name?: string;
+  role?: ProfileRole;
+  color?: string;
+  initials?: string;
+  bio?: string;
+  avatarUrl?: string;
+}
+
+// Profile color palette for visual distinction
+export const PROFILE_COLORS = [
+  "#3B82F6", // Blue (default for self)
+  "#FF6B9D", // Pink
+  "#C44569", // Rose
+  "#5F27CD", // Purple
+  "#0ABDE3", // Cyan
+  "#10AC84", // Green
+  "#F79F1F", // Orange
+  "#EE5A6F", // Coral
+  "#4834DF", // Indigo
+  "#6C5CE7", // Lavender
+  "#00CEC9", // Teal
+  "#FDCB6E", // Yellow
+  "#E17055", // Terra Cotta
+  "#74B9FF", // Light Blue
+  "#A29BFE", // Periwinkle
+  "#FD79A8", // Hot Pink
+  "#55EFC4", // Mint
+  "#81ECEC", // Aqua
+  "#FAB1A0", // Salmon
+  "#636E72", // Gray
+];
+
+// ============================================================
 // STREAM TYPES
 // ============================================================
 
@@ -66,6 +126,7 @@ export interface AiMetadata {
 export interface Entry {
   id: string;
   streamId: string;
+  profileId?: string;
   role: EntryRole;
   content: JSONContent; // ProseMirror JSON
   sequenceId: number;
@@ -76,6 +137,8 @@ export interface Entry {
   updatedAt: number;
   // AI-generated entry metadata (only for role === 'ai')
   aiMetadata?: AiMetadata;
+  // Optional: Profile data when fetched with entry
+  profile?: Profile;
 }
 
 export interface EntryNode extends Entry {
@@ -85,6 +148,7 @@ export interface EntryNode extends Entry {
 
 export interface CreateEntryInput {
   streamId: string;
+  profileId?: string;
   role: EntryRole;
   content: JSONContent;
   aiMetadata?: AiMetadata;

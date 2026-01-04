@@ -19,6 +19,7 @@ export function MainView() {
     addEntry,
     setCurrentStream,
     setLastCreatedEntryId,
+    activeProfileId,
   } = useAppStore();
 
   const { refetchStreams } = useStreamRefetch();
@@ -45,7 +46,7 @@ export function MainView() {
     if (!activeStreamId) return;
 
     devLog.createEntry(activeStreamId, 'user');
-    devLog.click('New Entry Button', { streamId: activeStreamId });
+    devLog.click('New Entry Button', { streamId: activeStreamId, profileId: activeProfileId });
 
     const emptyContent = {
       type: 'doc',
@@ -57,13 +58,14 @@ export function MainView() {
       ],
     };
 
-    devLog.apiCall('POST', 'create_entry', { streamId: activeStreamId, role: 'user' });
+    devLog.apiCall('POST', 'create_entry', { streamId: activeStreamId, role: 'user', profileId: activeProfileId });
 
     try {
       const newEntry = await api.createEntry({
         streamId: activeStreamId,
         role: 'user',
         content: emptyContent,
+        profileId: activeProfileId || undefined, // Use active profile as default author
       });
 
       devLog.apiSuccess('create_entry', { entryId: newEntry.id, sequenceId: newEntry.sequenceId });

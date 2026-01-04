@@ -492,11 +492,12 @@ export function BranchGraph({
 
     // Draw Nodes
     const nodeGroup = g.select('.nodes').empty() ? g.append('g').attr('class', 'nodes') : g.select('.nodes');
-    const nodes = (nodeGroup as any).selectAll('g') // eslint-disable-line @typescript-eslint/no-explicit-any
+    const nodes = (nodeGroup as any).selectAll('g.node-group') // eslint-disable-line @typescript-eslint/no-explicit-any
       .data(tree.nodes as any[], (d: any) => d.id) // eslint-disable-line @typescript-eslint/no-explicit-any
       .join(
         (enter: any) => { // eslint-disable-line @typescript-eslint/no-explicit-any
             const el = enter.append('g')
+                .attr('class', 'node-group')
                 .style('cursor', enableDrag ? 'grab' : 'pointer');
 
             if (enableDrag) {
@@ -671,10 +672,12 @@ export function BranchGraph({
         // Always show version badge if showVersionNumbers is enabled - use fallback version 1 for entries without versionHead
         const versionNum = isVersionNode ? d.representedVersion : (d.versionNumber ?? 1);
         const hasVersionNumber = versionNum !== undefined && versionNum !== null;
-        el.select('.version-badge')
+        const versionBadge = el.select('.version-badge');
+        versionBadge
              .attr('transform', `translate(${r * 0.8}, ${r * 0.5})`)
-             .attr('display', (showVersionNumbers && hasVersionNumber) ? 'block' : 'none')
-             .select('text')
+             .attr('display', (showVersionNumbers && hasVersionNumber) ? 'block' : 'none');
+        // Update text separately to ensure it's always set correctly
+        versionBadge.select('text')
              .text(`v${versionNum ?? 1}`);
         
         // Version connection badge - show which parent version created this node
