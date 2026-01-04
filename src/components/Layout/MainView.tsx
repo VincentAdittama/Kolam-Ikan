@@ -8,6 +8,7 @@ import { useAppStore } from '@/store/appStore';
 import { devLog } from '@/lib/devLogger';
 import { useStreamRefetch } from '@/hooks/useStreamRefetch';
 import { EntryBlock } from '@/components/Stream/EntryBlock';
+import { BulkActionBar } from '@/components/Stream/BulkActionBar';
 import * as api from '@/services/api';
 
 interface SelectionRect {
@@ -388,6 +389,9 @@ export function MainView() {
             style={getSelectionBoxStyle()}
         />
       )}
+
+      {/* Bulk Action Bar */}
+      <BulkActionBar />
     </div>
   );
 }
