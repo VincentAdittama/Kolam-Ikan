@@ -92,6 +92,10 @@ export function EntryBlock({ entry, isCompact = false }: EntryBlockProps) {
     setLastCreatedEntryId,
     profiles,
     showEditorToolbar,
+    bulkAction,
+    triggerBulkAction,
+    clearAllStaging,
+    activeStreamId,
   } = useAppStore();
 
   // Get profile for this entry
@@ -109,6 +113,13 @@ export function EntryBlock({ entry, isCompact = false }: EntryBlockProps) {
   useEffect(() => {
     setIsCollapsed(isCompact);
   }, [isCompact]);
+
+  // Handle Bulk Actions
+  useEffect(() => {
+    if (bulkAction.type && stagedEntryIds.has(entry.id)) {
+      setIsCollapsed(bulkAction.type === 'collapse');
+    }
+  }, [bulkAction, entry.id, stagedEntryIds]);
 
   const { refetchStreams } = useStreamRefetch();
   const [showVersionHistory, setShowVersionHistory] = useState(false);
@@ -310,17 +321,34 @@ export function EntryBlock({ entry, isCompact = false }: EntryBlockProps) {
 
   const handleToggleStaging = async () => {
     if (isStaged) {
-      devLog.unstage(entry.id, entry.sequenceId);
+      // If unchecking a selected item when multiple are selected, deselect all
+      if (stagedEntryIds.size > 1) {
+        devLog.action('Bulk Unselect', { count: stagedEntryIds.size });
+        clearAllStaging();
+        if (activeStreamId) {
+          api.clearAllStaging(activeStreamId).catch(console.error);
+        }
+      } else {
+        devLog.unstage(entry.id, entry.sequenceId);
+        toggleStaging(entry.id);
+        devLog.apiCall('PATCH', 'toggle_entry_staging', { entryId: entry.id, isStaged: false });
+        try {
+          await api.toggleEntryStaging(entry.id, false);
+          devLog.apiSuccess('toggle_entry_staging');
+        } catch (error) {
+          devLog.apiError('toggle_entry_staging', error);
+        }
+      }
     } else {
       devLog.stage(entry.id, entry.sequenceId);
-    }
-    toggleStaging(entry.id);
-    devLog.apiCall('PATCH', 'toggle_entry_staging', { entryId: entry.id, isStaged: !isStaged });
-    try {
-      await api.toggleEntryStaging(entry.id, !isStaged);
-      devLog.apiSuccess('toggle_entry_staging');
-    } catch (error) {
-      devLog.apiError('toggle_entry_staging', error);
+      toggleStaging(entry.id);
+      devLog.apiCall('PATCH', 'toggle_entry_staging', { entryId: entry.id, isStaged: true });
+      try {
+        await api.toggleEntryStaging(entry.id, true);
+        devLog.apiSuccess('toggle_entry_staging');
+      } catch (error) {
+        devLog.apiError('toggle_entry_staging', error);
+      }
     }
   };
 
@@ -341,7 +369,15 @@ export function EntryBlock({ entry, isCompact = false }: EntryBlockProps) {
           if ((e.target as HTMLElement).closest('button, [role="checkbox"], [data-state]')) {
             return;
           }
-          setIsCollapsed(!isCollapsed);
+          
+          const newCollapsedState = !isCollapsed;
+          
+          // Bulk Expand/Collapse Logic
+          if (stagedEntryIds.has(entry.id) && stagedEntryIds.size > 1) {
+            triggerBulkAction(newCollapsedState ? 'collapse' : 'expand');
+          } else {
+            setIsCollapsed(newCollapsedState);
+          }
         }}
       >
         <div className="flex items-center gap-3">

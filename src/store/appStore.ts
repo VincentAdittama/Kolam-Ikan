@@ -38,6 +38,9 @@ interface AppState {
   isSearchOpen: boolean;
   searchQuery: string;
 
+  // Bulk Action State
+  bulkAction: { type: "collapse" | "expand" | null; timestamp: number };
+
   // Loading States
   isLoadingStreams: boolean;
   isLoadingEntries: boolean;
@@ -69,6 +72,8 @@ interface AppState {
 
   setSearchOpen: (isOpen: boolean) => void;
   setSearchQuery: (query: string) => void;
+
+  triggerBulkAction: (type: "collapse" | "expand") => void;
 
   setLoadingStreams: (loading: boolean) => void;
   setLoadingEntries: (loading: boolean) => void;
@@ -110,6 +115,9 @@ export const useAppStore = create<AppState>((set) => ({
   // Initial Search State
   isSearchOpen: false,
   searchQuery: "",
+
+  // Initial Bulk Action State
+  bulkAction: { type: null, timestamp: 0 },
 
   // Initial Loading States
   isLoadingStreams: false,
@@ -247,10 +255,18 @@ export const useAppStore = create<AppState>((set) => ({
     devLog.action("Store: setSearchOpen", { isOpen });
     set({ isSearchOpen: isOpen });
   },
+
+  triggerBulkAction: (type) => {
+    devLog.action("Store: triggerBulkAction", { type });
+    set({ bulkAction: { type, timestamp: Date.now() } });
+  },
   setSearchQuery: (query) => {
     if (query) devLog.search(query);
     set({ searchQuery: query });
   },
+
+  // Bulk Action
+  // (triggerBulkAction is already defined above)
 
   // Loading Actions
   setLoadingStreams: (loading) => set({ isLoadingStreams: loading }),
