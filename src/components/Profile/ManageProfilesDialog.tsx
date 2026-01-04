@@ -83,9 +83,9 @@ export function ManageProfilesDialog({
       } else {
         setReassignProfileId(null);
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Failed to check profile entries:", error);
-      setError(error.message || "Failed to check associated entries.");
+      setError(error instanceof Error ? error.message : "Failed to check associated entries.");
     } finally {
       setCheckingCount(false);
     }
@@ -106,9 +106,9 @@ export function ManageProfilesDialog({
         reassignToId: entriesCount > 0 && reassignProfileId ? reassignProfileId : undefined
       });
       setProfileToDelete(null);
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Failed to delete profile:", error);
-      setError(error.message || "Failed to delete profile. Please try again.");
+      setError(error instanceof Error ? error.message : "Failed to delete profile. Please try again.");
     } finally {
       setIsDeleting(false);
     }
