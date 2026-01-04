@@ -418,7 +418,7 @@ export function parseAIResponse(rawText: string): ParsedAIResponse {
     if (openingTag) {
       const attrs = openingTag[1];
       // Detect placeholder patterns like [INSERT_KEY_HERE], {BRIDGE_KEY}, etc.
-      if (/bridge=["'][^"']*[\[\]{}<>][^"']*["']/i.test(attrs)) {
+      if (/bridge=["'][^"']*[[]{}<>][^"']*["']/i.test(attrs)) {
         validationErrors.push("Bridge key contains placeholder markers");
       }
     }
@@ -504,7 +504,14 @@ function parseInlineFormatting(text: string): JSONContent[] {
 
   // Regex patterns for inline elements
   // Order matters: more specific patterns first
-  const patterns = [
+  interface Pattern {
+    regex: RegExp;
+    marks?: string[];
+    hasHref?: boolean;
+    nodeType?: string;
+  }
+
+  const patterns: Pattern[] = [
     // Bold + Italic: ***text*** or ___text___
     { regex: /\*\*\*(.+?)\*\*\*|___(.+?)___/g, marks: ["bold", "italic"] },
     // Bold: **text** or __text__
@@ -549,7 +556,7 @@ function parseInlineFormatting(text: string): JSONContent[] {
         } else {
           const content = match[1] || match[2] || "";
           const marks: Mark[] = (pattern.marks || []).map((mark) => {
-            if (mark === "link" && (pattern as any).hasHref) {
+            if (mark === "link" && pattern.hasHref) {
               return {
                 type: "link",
                 attrs: { href: match[2], target: "_blank" },
@@ -559,7 +566,7 @@ function parseInlineFormatting(text: string): JSONContent[] {
           });
 
           // For links, content is match[1] (the link text)
-          const actualContent = (pattern as any).hasHref ? match[1] : content;
+          const actualContent = pattern.hasHref ? match[1] : content;
 
           earliestMatch = {
             index: match.index,

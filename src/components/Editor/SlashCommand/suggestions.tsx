@@ -13,7 +13,10 @@ import {
   Minus,
   Type,
 } from "lucide-react";
+import { type Editor, type Range } from "@tiptap/core";
+import { type SuggestionProps, type SuggestionKeyDownProps } from "@tiptap/suggestion";
 import { CommandList } from "./CommandList";
+import { type Instance, type Props } from "tippy.js";
 
 export const suggestion = {
   items: ({ query }: { query: string }) => {
@@ -23,7 +26,7 @@ export const suggestion = {
         description: "Big section heading",
         searchTerms: ["h1", "head", "large"],
         icon: Heading1,
-        command: ({ editor, range }: any) => {
+        command: ({ editor, range }: { editor: Editor; range: Range }) => {
           editor
             .chain()
             .focus()
@@ -37,7 +40,7 @@ export const suggestion = {
         description: "Medium section heading",
         searchTerms: ["h2", "head", "medium"],
         icon: Heading2,
-        command: ({ editor, range }: any) => {
+        command: ({ editor, range }: { editor: Editor; range: Range }) => {
           editor
             .chain()
             .focus()
@@ -51,7 +54,7 @@ export const suggestion = {
         description: "Small section heading",
         searchTerms: ["h3", "head", "small"],
         icon: Heading3,
-        command: ({ editor, range }: any) => {
+        command: ({ editor, range }: { editor: Editor; range: Range }) => {
           editor
             .chain()
             .focus()
@@ -65,7 +68,7 @@ export const suggestion = {
         description: 'Sub-section heading',
         searchTerms: ['h4', 'head', 'tiny'],
         icon: Heading3,
-        command: ({ editor, range }: any) => {
+        command: ({ editor, range }: { editor: Editor; range: Range }) => {
           editor
             .chain()
             .focus()
@@ -79,7 +82,7 @@ export const suggestion = {
         description: 'Sub-section heading',
         searchTerms: ['h5', 'head', 'tiny'],
         icon: Heading3,
-        command: ({ editor, range }: any) => {
+        command: ({ editor, range }: { editor: Editor; range: Range }) => {
           editor
             .chain()
             .focus()
@@ -93,7 +96,7 @@ export const suggestion = {
         description: 'Sub-section heading',
         searchTerms: ['h6', 'head', 'tiny'],
         icon: Heading3,
-        command: ({ editor, range }: any) => {
+        command: ({ editor, range }: { editor: Editor; range: Range }) => {
           editor
             .chain()
             .focus()
@@ -107,7 +110,7 @@ export const suggestion = {
         description: "Create a simple bulleted list",
         searchTerms: ["unordered", "point", "list"],
         icon: List,
-        command: ({ editor, range }: any) => {
+        command: ({ editor, range }: { editor: Editor; range: Range }) => {
           editor.chain().focus().deleteRange(range).toggleBulletList().run();
         },
       },
@@ -116,7 +119,7 @@ export const suggestion = {
         description: "Create a list with numbering",
         searchTerms: ["ordered", "list"],
         icon: ListOrdered,
-        command: ({ editor, range }: any) => {
+        command: ({ editor, range }: { editor: Editor; range: Range }) => {
           editor.chain().focus().deleteRange(range).toggleOrderedList().run();
         },
       },
@@ -125,7 +128,7 @@ export const suggestion = {
         description: "Track tasks with a checklist",
         searchTerms: ["todo", "check", "list"],
         icon: CheckSquare,
-        command: ({ editor, range }: any) => {
+        command: ({ editor, range }: { editor: Editor; range: Range }) => {
           editor.chain().focus().deleteRange(range).toggleTaskList().run();
         },
       },
@@ -134,7 +137,7 @@ export const suggestion = {
         description: "Insert a code block with syntax highlighting",
         searchTerms: ["code", "pre", "snippet"],
         icon: Code,
-        command: ({ editor, range }: any) => {
+        command: ({ editor, range }: { editor: Editor; range: Range }) => {
           editor.chain().focus().deleteRange(range).toggleCodeBlock().run();
         },
       },
@@ -143,7 +146,7 @@ export const suggestion = {
         description: "Insert a table",
         searchTerms: ["table", "grid", "data"],
         icon: TableIcon,
-        command: ({ editor, range }: any) => {
+        command: ({ editor, range }: { editor: Editor; range: Range }) => {
           editor
             .chain()
             .focus()
@@ -157,7 +160,7 @@ export const suggestion = {
         description: "Insert a blockquote",
         searchTerms: ["quote", "cite"],
         icon: Quote,
-        command: ({ editor, range }: any) => {
+        command: ({ editor, range }: { editor: Editor; range: Range }) => {
           editor.chain().focus().deleteRange(range).toggleBlockquote().run();
         },
       },
@@ -166,7 +169,7 @@ export const suggestion = {
         description: "Insert a horizontal divider",
         searchTerms: ["hr", "divider", "line"],
         icon: Minus,
-        command: ({ editor, range }: any) => {
+        command: ({ editor, range }: { editor: Editor; range: Range }) => {
           editor.chain().focus().deleteRange(range).setHorizontalRule().run();
         },
       },
@@ -175,7 +178,7 @@ export const suggestion = {
         description: "Plain text",
         searchTerms: ["p", "para", "normal"],
         icon: Type,
-        command: ({ editor, range }: any) => {
+        command: ({ editor, range }: { editor: Editor; range: Range }) => {
           editor.chain().focus().deleteRange(range).setNode("paragraph").run();
         },
       },
@@ -192,17 +195,17 @@ export const suggestion = {
   },
 
   render: () => {
-    let component: any;
-    let popup: any;
+    let component: ReactRenderer<{ onKeyDown: (props: { event: globalThis.KeyboardEvent }) => boolean }>;
+    let popup: Instance<Props> | null = null;
 
     return {
-      onStart: (props: any) => {
+      onStart: (props: SuggestionProps) => {
         console.log('SlashCommand onStart', props);
         component = new ReactRenderer(CommandList, {
           props: {
             ...props,
             onSelect: () => {
-              popup?.[0]?.hide();
+              popup?.hide();
             }
           },
           editor: props.editor,
@@ -213,8 +216,8 @@ export const suggestion = {
           return;
         }
 
-        const tippyInstances = tippy(document.body, {
-          getReferenceClientRect: props.clientRect,
+        popup = tippy(document.body, {
+          getReferenceClientRect: props.clientRect as () => DOMRect,
           appendTo: () => document.body,
           content: component.element,
           showOnCreate: true,
@@ -222,16 +225,14 @@ export const suggestion = {
           trigger: "manual",
           placement: "bottom-start",
         });
-
-        popup = Array.isArray(tippyInstances) ? tippyInstances : [tippyInstances];
       },
 
-      onUpdate(props: any) {
+      onUpdate(props: SuggestionProps) {
         console.log('SlashCommand onUpdate', props);
         component.updateProps({
           ...props,
           onSelect: () => {
-            popup?.[0]?.hide();
+            popup?.hide();
           }
         });
 
@@ -239,14 +240,14 @@ export const suggestion = {
           return;
         }
 
-        popup?.[0]?.setProps({
-          getReferenceClientRect: props.clientRect,
+        popup?.setProps({
+          getReferenceClientRect: props.clientRect as () => DOMRect,
         });
       },
 
-      onKeyDown(props: any) {
+      onKeyDown(props: SuggestionKeyDownProps) {
         if (props.event.key === "Escape") {
-          popup?.[0]?.hide();
+          popup?.hide();
           return true;
         }
 
@@ -254,7 +255,7 @@ export const suggestion = {
           // The command will be executed by CommandList, but we need to hide the popup
           // since the suggestion exit might not trigger immediately or correctly
           setTimeout(() => {
-            popup?.[0]?.hide();
+            popup?.hide();
           }, 0);
         }
 
@@ -263,7 +264,7 @@ export const suggestion = {
 
       onExit() {
         console.log('SlashCommand onExit');
-        popup?.[0]?.destroy();
+        popup?.destroy();
         component?.destroy();
       },
     };

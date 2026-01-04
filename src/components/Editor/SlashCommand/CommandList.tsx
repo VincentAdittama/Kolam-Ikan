@@ -1,13 +1,33 @@
 import {
   forwardRef,
-  useEffect,
   useImperativeHandle,
   useState,
 } from 'react';
+import { type LucideIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { type Editor, type Range } from '@tiptap/core';
 
-export const CommandList = forwardRef((props: any, ref) => {
+interface CommandItem {
+  title: string;
+  description: string;
+  icon: LucideIcon;
+  command: (props: { editor: Editor; range: Range }) => void;
+}
+
+interface CommandListProps {
+  items: CommandItem[];
+  command: (item: CommandItem) => void;
+  onSelect?: () => void;
+}
+
+export const CommandList = forwardRef<{ onKeyDown: (props: { event: globalThis.KeyboardEvent }) => boolean }, CommandListProps>((props, ref) => {
   const [selectedIndex, setSelectedIndex] = useState(0);
+  const [prevItems, setPrevItems] = useState(props.items);
+
+  if (props.items !== prevItems) {
+    setPrevItems(props.items);
+    setSelectedIndex(0);
+  }
 
   const selectItem = (index: number) => {
     const item = props.items[index];
@@ -19,12 +39,9 @@ export const CommandList = forwardRef((props: any, ref) => {
     }
   };
 
-  useEffect(() => {
-    setSelectedIndex(0);
-  }, [props.items]);
 
   useImperativeHandle(ref, () => ({
-    onKeyDown: ({ event }: any) => {
+    onKeyDown: ({ event }: { event: globalThis.KeyboardEvent }) => {
       if (event.key === 'ArrowUp') {
         setSelectedIndex((selectedIndex + props.items.length - 1) % props.items.length);
         return true;
@@ -51,7 +68,7 @@ export const CommandList = forwardRef((props: any, ref) => {
           <div className="px-2 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70">
             Commands
           </div>
-          {props.items.map((item: any, index: number) => {
+          {props.items.map((item, index) => {
             const Icon = item.icon;
             return (
               <button

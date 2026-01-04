@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -46,25 +46,20 @@ export function ProfileFormDialog({
   const createProfile = useCreateProfile();
   const updateProfile = useUpdateProfile();
 
-  // Reset or initialize form when dialog opens or initialProfile changes
-  useEffect(() => {
+  const [prevOpen, setPrevOpen] = useState(open);
+  const [prevInitialProfile, setPrevInitialProfile] = useState(initialProfile);
+
+  if (open !== prevOpen || initialProfile !== prevInitialProfile) {
+    setPrevOpen(open);
+    setPrevInitialProfile(initialProfile);
     if (open) {
-      if (initialProfile) {
-        setName(initialProfile.name);
-        setRole(initialProfile.role);
-        setColor(initialProfile.color || PROFILE_COLORS[1]);
-        setInitials(initialProfile.initials || '');
-        setBio(initialProfile.bio || '');
-      } else {
-        // Reset defaults for create mode
-        setName('');
-        setRole('friend');
-        setColor(PROFILE_COLORS[1]);
-        setInitials('');
-        setBio('');
-      }
+      setName(initialProfile?.name || '');
+      setRole(initialProfile?.role || 'friend');
+      setColor(initialProfile?.color || PROFILE_COLORS[1]);
+      setInitials(initialProfile?.initials || '');
+      setBio(initialProfile?.bio || '');
     }
-  }, [open, initialProfile]);
+  }
 
   // Auto-generate initials from name
   const handleNameChange = (value: string) => {

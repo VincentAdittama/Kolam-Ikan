@@ -187,15 +187,15 @@ export function VersionHistoryDialog({
   const revertMutation = useRevertToVersion();
   const commitMutation = useCommitVersion();
   
-  // Reset state when dialog closes/opens
-  useEffect(() => {
+  const [prevOpen, setPrevOpen] = useState(open);
+
+  if (open !== prevOpen) {
+    setPrevOpen(open);
     if (open) {
       setCompareMode(false);
       setCompareVersionA(null);
-      // Don't auto-select to allow user to see "Select a version" prompt or maybe select latest?
-      // Let's not auto-select to keep the empty state unless requested.
     }
-  }, [open]);
+  }
 
   // Check if current content differs from latest version
   const hasUncommittedChanges = useMemo(() => {
