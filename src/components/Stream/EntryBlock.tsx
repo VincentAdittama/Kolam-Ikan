@@ -326,7 +326,11 @@ export function EntryBlock({ entry, isCompact = false }: EntryBlockProps) {
         devLog.action('Bulk Unselect', { count: stagedEntryIds.size });
         clearAllStaging();
         if (activeStreamId) {
-          api.clearAllStaging(activeStreamId).catch(console.error);
+          try {
+            await api.clearAllStaging(activeStreamId);
+          } catch (error) {
+            console.error('Failed to clear all staging:', error);
+          }
         }
       } else {
         devLog.unstage(entry.id, entry.sequenceId);

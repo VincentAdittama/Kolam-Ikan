@@ -272,7 +272,7 @@ export function BranchGraph({
           .attr('orient', 'auto')
           .append('path')
           .attr('d', 'M0,-4L10,0L0,4')
-          .attr('fill', 'rgba(156, 163, 175, 0.5)');
+          .attr('fill', 'rgba(100, 116, 139, 0.9)'); // Slate-500 for better visibility
         
         // Synapse Arrow Marker (Amber for context dependencies)
         defs.append('marker')
@@ -447,10 +447,10 @@ export function BranchGraph({
     // Draw Links (use the same activeLinks that the simulation is using)
     const linkGroup = g.select('.links').empty() ? g.append('g').attr('class', 'links') : g.select('.links');
     
-    const links = (linkGroup as any).selectAll('path') // eslint-disable-line @typescript-eslint/no-explicit-any
-      .data(activeLinks as any[], (d: any) => { // eslint-disable-line @typescript-eslint/no-explicit-any
-        const sourceId = typeof d.source === 'object' ? d.source.id : d.source;
-        const targetId = typeof d.target === 'object' ? d.target.id : d.target;
+    const links = (linkGroup as d3.Selection<SVGGElement, unknown, null, undefined>).selectAll<SVGPathElement, BranchLink>('path')
+      .data(activeLinks, (d) => {
+        const sourceId = typeof d.source === 'object' ? (d.source as BranchNode).id : d.source;
+        const targetId = typeof d.target === 'object' ? (d.target as BranchNode).id : d.target;
         return `${sourceId}-${targetId}`;
       })
       .join('path')
@@ -458,16 +458,16 @@ export function BranchGraph({
       .attr('fill', 'none')
       .attr('stroke', (d: BranchLink) => {
         if (d.isContextLink) return '#F59E0B'; // Amber for context dependencies (synapses)
-        if (d.isVersionLink) return 'rgba(139, 92, 246, 0.5)'; // Purple for version links
-        if (d.isVersionConnection && showVersionConnections) return 'rgba(34, 197, 94, 0.6)'; // Green for cross-version connections
-        if (d.isBranch) return 'rgba(139, 92, 246, 0.6)';
-        return 'rgba(156, 163, 175, 0.4)';
+        if (d.isVersionLink) return 'rgba(139, 92, 246, 0.4)'; // Muted purple for internal version links
+        if (d.isVersionConnection && showVersionConnections) return 'rgba(34, 197, 94, 0.5)'; // Muted green for cross-version
+        if (d.isBranch) return 'rgba(99, 102, 241, 0.7)'; // Indigo for branches
+        return 'rgba(148, 163, 184, 0.8)'; // Slate-400 with high opacity for structural linear links
       })
       .attr('stroke-width', (d: BranchLink) => {
         if (d.isContextLink) return 1.5;
         if (d.isVersionLink) return 2;
         if (d.isBranch) return 3;
-        return 2;
+        return 2.5; // Thicker than 2, thinner than 3
       })
       .attr('stroke-dasharray', (d: BranchLink) => {
         if (d.isContextLink) return '5,5'; // Dashed for synapses
@@ -492,10 +492,10 @@ export function BranchGraph({
 
     // Draw Nodes
     const nodeGroup = g.select('.nodes').empty() ? g.append('g').attr('class', 'nodes') : g.select('.nodes');
-    const nodes = (nodeGroup as any).selectAll('g.node-group') // eslint-disable-line @typescript-eslint/no-explicit-any
-      .data(tree.nodes as any[], (d: any) => d.id) // eslint-disable-line @typescript-eslint/no-explicit-any
+    const nodes = (nodeGroup as d3.Selection<SVGGElement, unknown, null, undefined>).selectAll<SVGGElement, BranchNode>('g.node-group')
+      .data(tree.nodes, (d) => d.id)
       .join(
-        (enter: any) => { // eslint-disable-line @typescript-eslint/no-explicit-any
+        (enter) => {
             const el = enter.append('g')
                 .attr('class', 'node-group')
                 .style('cursor', enableDrag ? 'grab' : 'pointer');
@@ -615,8 +615,8 @@ export function BranchGraph({
                 
             return el;
         },
-        (update: any) => update, // eslint-disable-line @typescript-eslint/no-explicit-any
-        (exit: any) => exit.remove() // eslint-disable-line @typescript-eslint/no-explicit-any
+        (update) => update,
+        (exit) => exit.remove()
       );
 
     // Update Attributes for new and existing nodes
@@ -762,8 +762,7 @@ export function BranchGraph({
           };
           
           // Update synapse link opacities and colors - show all links in parent chain
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          const synapseLinks = (linkGroup as any).selectAll('path.synapse');
+          const synapseLinks = (linkGroup as d3.Selection<SVGGElement, unknown, null, undefined>).selectAll<SVGPathElement, BranchLink>('path.synapse');
           synapseLinks
             .transition().duration(150)
             .attr('opacity', function(this: SVGPathElement) {
@@ -821,8 +820,7 @@ export function BranchGraph({
         if (showSynapses) {
           setFocusedNodeId(null);
           // Reset synapse link opacities
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          const synapseLinksReset = (linkGroup as any).selectAll('path.synapse');
+          const synapseLinksReset = (linkGroup as d3.Selection<SVGGElement, unknown, null, undefined>).selectAll<SVGPathElement, BranchLink>('path.synapse');
           synapseLinksReset
             .transition().duration(150)
             .attr('opacity', 0.25)
@@ -925,7 +923,7 @@ export function BranchGraph({
       links.attr('d', (d: BranchLink) => {
         const source = d.source as unknown as BranchNode;
         const target = d.target as unknown as BranchNode;
-        if (!source.x || !source.y || !target.x || !target.y) return '';
+        if (source.x === undefined || source.y === undefined || target.x === undefined || target.y === undefined) return '';
 
         // Calculate the source and target radii
         const sourceRadius = getNodeRadius(source);
