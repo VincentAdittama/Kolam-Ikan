@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react';
-import { Plus, LayoutGrid, List } from 'lucide-react';
+import { Plus, LayoutGrid, List, Settings2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -30,6 +30,8 @@ export function MainView() {
     activeProfileId,
     stagedEntryIds,
     setStagedEntryIds,
+    showEditorToolbar,
+    toggleEditorToolbar,
   } = useAppStore();
 
   const { refetchStreams } = useStreamRefetch();
@@ -318,16 +320,33 @@ export function MainView() {
             )}
         </div>
         
-        {/* Toggle View Button */}
-        <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => setIsCompactMode(!isCompactMode)}
-            className="ml-4 text-muted-foreground hover:text-foreground"
-            title={isCompactMode ? "Switch to Expanded View" : "Switch to Compact View"}
-        >
-            {isCompactMode ? <List className="h-4 w-4" /> : <LayoutGrid className="h-4 w-4" />}
-        </Button>
+        
+        <div className="flex items-center">
+            {/* Toggle Editor Toolbar Button */}
+            <Button
+                variant="ghost"
+                size="sm"
+                onClick={toggleEditorToolbar}
+                className={cn(
+                    "ml-4 text-muted-foreground hover:text-foreground",
+                    showEditorToolbar && "bg-accent text-accent-foreground"
+                )}
+                title={showEditorToolbar ? "Hide Editor Configs" : "Show Editor Configs"}
+            >
+                <Settings2 className="h-4 w-4" />
+            </Button>
+
+            {/* Toggle View Button */}
+            <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setIsCompactMode(!isCompactMode)}
+                className="ml-2 text-muted-foreground hover:text-foreground"
+                title={isCompactMode ? "Switch to Expanded View" : "Switch to Compact View"}
+            >
+                {isCompactMode ? <List className="h-4 w-4" /> : <LayoutGrid className="h-4 w-4" />}
+            </Button>
+        </div>
       </div>
 
       {/* Entries */}

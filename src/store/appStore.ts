@@ -18,6 +18,7 @@ interface AppState {
   sidebarVisible: boolean;
   rightPanelVisible: boolean;
   theme: "light" | "dark" | "system";
+  showEditorToolbar: boolean;
 
   // Profile State
   profiles: Profile[];
@@ -48,6 +49,7 @@ interface AppState {
   toggleSidebar: () => void;
   toggleRightPanel: () => void;
   setTheme: (theme: "light" | "dark" | "system") => void;
+  toggleEditorToolbar: () => void;
 
   setStreams: (streams: StreamMetadata[]) => void;
   setCurrentStream: (stream: Stream | null) => void;
@@ -89,6 +91,7 @@ export const useAppStore = create<AppState>((set) => ({
   sidebarVisible: true,
   rightPanelVisible: true,
   theme: "system",
+  showEditorToolbar: true,
 
   // Initial Profile State
   profiles: [],
@@ -141,6 +144,12 @@ export const useAppStore = create<AppState>((set) => ({
     devLog.action("Store: setTheme", { theme });
     set({ theme });
   },
+  toggleEditorToolbar: () =>
+    set((state) => {
+      const newVisible = !state.showEditorToolbar;
+      devLog.action("Store: toggleEditorToolbar", { visible: newVisible });
+      return { showEditorToolbar: newVisible };
+    }),
 
   // Data Actions
   setStreams: (streams) => {

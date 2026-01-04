@@ -91,6 +91,7 @@ export function EntryBlock({ entry, isCompact = false }: EntryBlockProps) {
     lastCreatedEntryId,
     setLastCreatedEntryId,
     profiles,
+    showEditorToolbar,
   } = useAppStore();
 
   // Get profile for this entry
@@ -608,7 +609,7 @@ export function EntryBlock({ entry, isCompact = false }: EntryBlockProps) {
       </div>
 
       {/* Editor Toolbar (appears on focus) */}
-      {!isCollapsed && editor && <EditorToolbar editor={editor} />}
+      {!isCollapsed && showEditorToolbar && editor && <EditorToolbar editor={editor} />}
 
       {/* Editor Content */}
       {!isCollapsed && (
