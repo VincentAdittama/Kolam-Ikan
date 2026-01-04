@@ -28,7 +28,7 @@ export function MainView() {
     setLastCreatedEntryId,
     activeProfileId,
     stagedEntryIds,
-    toggleStaging,
+    setStagedEntryIds,
   } = useAppStore();
 
   const { refetchStreams } = useStreamRefetch();
@@ -45,6 +45,8 @@ export function MainView() {
   const [isSelecting, setIsSelecting] = useState(false);
   const [selectionRect, setSelectionRect] = useState<SelectionRect | null>(null);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
+  const mainContainerRef = useRef<HTMLDivElement>(null);
+  const initialStagedIdsRef = useRef<Set<string>>(new Set());
 
   const handleUpdateStream = async (updates: { title?: string; description?: string }) => {
     if (!activeStreamId) return;
@@ -106,7 +108,8 @@ export function MainView() {
     }
 
     setIsSelecting(true);
-    const rect = scrollAreaRef.current?.getBoundingClientRect();
+    initialStagedIdsRef.current = new Set(stagedEntryIds);
+    const rect = mainContainerRef.current?.getBoundingClientRect();
     if (rect) {
       setSelectionRect({
         startX: e.clientX,
@@ -120,71 +123,76 @@ export function MainView() {
   const handleMouseMove = (e: React.MouseEvent) => {
     if (!isSelecting || !selectionRect) return;
     
-    setSelectionRect(prev => prev ? ({
-      ...prev,
+    const newRect = {
+      ...selectionRect,
       currentX: e.clientX,
       currentY: e.clientY,
-    }) : null);
-  };
+    };
+    setSelectionRect(newRect);
 
-  const handleMouseUp = async (e: React.MouseEvent) => {
-     if (!isSelecting || !selectionRect) return;
-
-    const isInverse = e.metaKey || e.ctrlKey; // Inverse selection with Cmd/Ctrl
-
-    // Calculate selection bounds
-    const left = Math.min(selectionRect.startX, selectionRect.currentX);
-    const top = Math.min(selectionRect.startY, selectionRect.currentY);
-    const width = Math.abs(selectionRect.currentX - selectionRect.startX);
-    const height = Math.abs(selectionRect.currentY - selectionRect.startY);
+    // Real-time selection logic
+    const isInverse = e.metaKey || e.ctrlKey;
+    const left = Math.min(newRect.startX, newRect.currentX);
+    const top = Math.min(newRect.startY, newRect.currentY);
+    const width = Math.abs(newRect.currentX - newRect.startX);
+    const height = Math.abs(newRect.currentY - newRect.startY);
     const right = left + width;
     const bottom = top + height;
 
-    // Minimum drag distance to trigger selection (avoid accidental clicks)
     if (width > 5 || height > 5) {
       const entryElements = document.querySelectorAll('[data-entry-id]');
-      
-      const newStagings = new Map<string, boolean>();
+      const nextStagedIds = new Set(initialStagedIdsRef.current);
 
       entryElements.forEach(el => {
         const rect = el.getBoundingClientRect();
         const entryId = el.getAttribute('data-entry-id');
         
         if (entryId) {
-             // Check intersection
-            const intersect = !(rect.left > right || 
+             const intersect = !(rect.left > right || 
                               rect.right < left || 
                               rect.top > bottom || 
                               rect.bottom < top);
 
             if (intersect) {
-                // If inverse, flip state. If not inverse, select.
-                // We need to know current state. We have stagedEntryIds from store.
-                const isCurrentlyStaged = stagedEntryIds.has(entryId);
-                
                 if (isInverse) {
-                    newStagings.set(entryId, !isCurrentlyStaged);
+                    // Toggle relative to initial state
+                    if (initialStagedIdsRef.current.has(entryId)) {
+                        nextStagedIds.delete(entryId);
+                    } else {
+                        nextStagedIds.add(entryId);
+                    }
                 } else {
-                    newStagings.set(entryId, true);
+                    nextStagedIds.add(entryId);
+                }
+            } else if (!isInverse) {
+                // If not inverse and not intersecting, ensure it's in its initial state if we want to "deselect" as we move box away
+                // Actually, if we want typical behavior: if it's not in the box, it should be in initial state
+                if (!initialStagedIdsRef.current.has(entryId)) {
+                    nextStagedIds.delete(entryId);
                 }
             }
         }
       });
-      
-      // Batch update logic would be ideal here if the store supports it,
-      // but for now we'll iterate. To avoid race conditions or excessive renders,
-      // it might be better to have a batchStaging action.
-      // Assuming toggleStaging is fast enough for now.
-      
-      for (const [id, shouldStage] of newStagings) {
-          // Optimization: only call if state needs to change
-          if (stagedEntryIds.has(id) !== shouldStage) {
-             toggleStaging(id);
-             // We can fire async api calls here without awaiting them to keep UI snappy
-             api.toggleEntryStaging(id, shouldStage).catch(console.error);
-          }
-      }
+      setStagedEntryIds(nextStagedIds);
     }
+  };
+
+  const handleMouseUp = async () => {
+     if (!isSelecting || !selectionRect) return;
+
+     // Final synchronization with backend
+     const currentIds = stagedEntryIds;
+     const initialIds = initialStagedIdsRef.current;
+
+     // Identify changes to sync
+     const allIds = new Set([...currentIds, ...initialIds]);
+     for (const id of allIds) {
+         const isNowStaged = currentIds.has(id);
+         const wasStaged = initialIds.has(id);
+         if (isNowStaged !== wasStaged) {
+             api.toggleEntryStaging(id, isNowStaged).catch(console.error);
+         }
+     }
 
     setIsSelecting(false);
     setSelectionRect(null);
@@ -222,9 +230,15 @@ export function MainView() {
   }
 
   return (
-    <div className="flex h-full flex-1 flex-col relative">
+    <div 
+      ref={mainContainerRef}
+      className="flex h-full flex-1 flex-col relative"
+      onMouseDown={handleMouseDown}
+      onMouseMove={handleMouseMove}
+      onMouseUp={handleMouseUp}
+    >
       {/* Stream Header */}
-      <div className="border-b px-6 py-4 flex items-start justify-between">
+      <div className="border-b px-6 py-4 flex items-start justify-between select-none">
         <div className="flex-1">
             {isEditingTitle ? (
             <Input
@@ -319,10 +333,6 @@ export function MainView() {
       <ScrollArea 
         className="flex-1 select-none" 
         ref={scrollAreaRef}
-        onMouseDown={handleMouseDown}
-        onMouseMove={handleMouseMove}
-        onMouseUp={handleMouseUp}
-        onMouseLeave={handleMouseUp}
         >
         <div className="px-6 py-4 space-y-4">
           {isLoadingEntries ? (

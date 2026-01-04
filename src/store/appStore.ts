@@ -56,6 +56,7 @@ interface AppState {
   updateEntry: (entryId: string, updates: Partial<Entry>) => void;
   removeEntry: (entryId: string) => void;
 
+  setStagedEntryIds: (ids: Set<string>) => void;
   toggleStaging: (entryId: string) => void;
   stageEntry: (entryId: string) => void;
   unstageEntry: (entryId: string) => void;
@@ -183,6 +184,10 @@ export const useAppStore = create<AppState>((set) => ({
     }));
   },
 
+  setStagedEntryIds: (ids) => {
+    devLog.action("Store: setStagedEntryIds", { count: ids.size });
+    set({ stagedEntryIds: ids });
+  },
   // Staging Actions
   toggleStaging: (entryId) =>
     set((state) => {
