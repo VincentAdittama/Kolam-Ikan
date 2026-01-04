@@ -10,6 +10,13 @@ import { Table } from '@tiptap/extension-table';
 import { TableRow } from '@tiptap/extension-table-row';
 import { TableCell } from '@tiptap/extension-table-cell';
 import { TableHeader } from '@tiptap/extension-table-header';
+import TextAlign from '@tiptap/extension-text-align';
+import Highlight from '@tiptap/extension-highlight';
+import { TextStyle } from '@tiptap/extension-text-style';
+import Color from '@tiptap/extension-color';
+import Subscript from '@tiptap/extension-subscript';
+import Superscript from '@tiptap/extension-superscript';
+import Link from '@tiptap/extension-link';
 import { common, createLowlight } from 'lowlight';
 import {
   User,
@@ -229,6 +236,22 @@ export function EntryBlock({ entry, isCompact = false }: EntryBlockProps) {
       TableRow,
       TableCell,
       TableHeader,
+      TextAlign.configure({
+        types: ['heading', 'paragraph'],
+      }),
+      Highlight.configure({
+        multicolor: true,
+      }),
+      TextStyle,
+      Color,
+      Subscript,
+      Superscript,
+      Link.configure({
+        openOnClick: false,
+        HTMLAttributes: {
+          class: 'text-primary underline underline-offset-2 hover:text-primary/80',
+        },
+      }),
       SlashCommand,
     ],
     content: entry.content,

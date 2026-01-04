@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef, useLayoutEffect } from 'react';
 import type { Editor } from '@tiptap/react';
 import {
   Bold,
@@ -6,39 +6,57 @@ import {
   Underline,
   Strikethrough,
   Code,
-  Heading1,
-  Heading2,
-  Heading3,
-  List,
-  ListOrdered,
-  CheckSquare,
   Quote,
   Minus,
-  Link,
   Table,
+  Undo,
+  Redo,
+  Superscript,
+  Subscript,
+  MoreHorizontal,
 } from 'lucide-react';
-import { Button } from '@/components/ui/button';
 import {
   Tooltip,
   TooltipContent,
   TooltipTrigger,
 } from '@/components/ui/tooltip';
-import { cn } from '@/lib/utils';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+  DropdownMenuSeparator,
+} from '@/components/ui/dropdown-menu';
+import {
+  Toolbar,
+  ToolbarGroup,
+  ToolbarSeparator,
+  ToolbarButton,
+} from '@/components/ui/toolbar';
+import {
+  HeadingDropdown,
+  ListDropdown,
+  ColorHighlightPopover,
+  TextAlignButtons,
+  LinkPopover,
+} from '@/components/Editor/components';
 import { devLog } from '@/lib/devLogger';
+import { cn } from '@/lib/utils';
 
 interface EditorToolbarProps {
   editor: Editor;
 }
 
-interface ToolbarButtonProps {
+interface ToolbarItemProps {
   icon: React.ReactNode;
   label: string;
   shortcut?: string;
   isActive?: boolean;
+  disabled?: boolean;
   onClick: () => void;
 }
 
-function ToolbarButton({ icon, label, shortcut, isActive, onClick }: ToolbarButtonProps) {
+function ToolbarItem({ icon, label, shortcut, isActive, disabled, onClick }: ToolbarItemProps) {
   const handleClick = () => {
     devLog.editorAction(`Toolbar: ${label}`, { shortcut, wasActive: isActive });
     onClick();
@@ -47,26 +65,56 @@ function ToolbarButton({ icon, label, shortcut, isActive, onClick }: ToolbarButt
   return (
     <Tooltip>
       <TooltipTrigger asChild>
-        <Button
-          variant="ghost"
-          size="icon"
-          className={cn('h-7 w-7', isActive && 'bg-accent')}
+        <ToolbarButton
+          isActive={isActive}
+          disabled={disabled}
           onClick={handleClick}
+          aria-label={label}
         >
           {icon}
-        </Button>
+        </ToolbarButton>
       </TooltipTrigger>
-      <TooltipContent>
-        <p>{label}</p>
+      <TooltipContent side="bottom" sideOffset={5}>
+        <p className="font-medium">{label}</p>
         {shortcut && <p className="text-xs text-muted-foreground">{shortcut}</p>}
       </TooltipContent>
     </Tooltip>
   );
 }
 
+// Items that go in overflow menu when space is limited
+interface OverflowItem {
+  icon: React.ReactNode;
+  label: string;
+  shortcut?: string;
+  isActive?: boolean;
+  disabled?: boolean;
+  onClick: () => void;
+  separator?: boolean;
+}
+
 export function EditorToolbar({ editor }: EditorToolbarProps) {
-  // Force re-render on editor selection/transaction changes
   const [, setUpdateCount] = useState(0);
+  const [toolbarWidth, setToolbarWidth] = useState(0);
+  const toolbarRef = useRef<HTMLDivElement>(null);
+
+  // Measure toolbar width
+  useLayoutEffect(() => {
+    const measure = () => {
+      if (toolbarRef.current) {
+        setToolbarWidth(toolbarRef.current.offsetWidth);
+      }
+    };
+    
+    measure();
+    
+    const observer = new ResizeObserver(measure);
+    if (toolbarRef.current) {
+      observer.observe(toolbarRef.current);
+    }
+    
+    return () => observer.disconnect();
+  }, []);
 
   useEffect(() => {
     const handleUpdate = () => {
@@ -84,143 +132,279 @@ export function EditorToolbar({ editor }: EditorToolbarProps) {
 
   if (!editor) return null;
 
+  const canUndo = editor.can().undo();
+  const canRedo = editor.can().redo();
+
+  // Breakpoints for responsive toolbar
+  const isCompact = toolbarWidth < 600;
+  const isVeryCompact = toolbarWidth < 400;
+
+  // Define overflow items
+  const overflowItems: OverflowItem[] = [
+    ...(isCompact ? [
+      {
+        icon: <Superscript className="h-4 w-4" />,
+        label: 'Superscript',
+        isActive: editor.isActive('superscript'),
+        onClick: () => editor.chain().focus().toggleSuperscript().run(),
+      },
+      {
+        icon: <Subscript className="h-4 w-4" />,
+        label: 'Subscript',
+        isActive: editor.isActive('subscript'),
+        onClick: () => editor.chain().focus().toggleSubscript().run(),
+        separator: true,
+      },
+      {
+        icon: <Minus className="h-4 w-4" />,
+        label: 'Horizontal Rule',
+        onClick: () => editor.chain().focus().setHorizontalRule().run(),
+      },
+      {
+        icon: <Table className="h-4 w-4" />,
+        label: 'Insert Table',
+        onClick: () => editor.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run(),
+        separator: true,
+      },
+      {
+        icon: <Quote className="h-4 w-4" />,
+        label: 'Blockquote',
+        isActive: editor.isActive('blockquote'),
+        onClick: () => editor.chain().focus().toggleBlockquote().run(),
+      },
+      {
+        icon: <Code className="h-4 w-4" />,
+        label: 'Code Block',
+        shortcut: '⌘⌥C',
+        isActive: editor.isActive('codeBlock'),
+        onClick: () => editor.chain().focus().toggleCodeBlock().run(),
+      },
+    ] : []),
+    ...(isVeryCompact ? [
+      { separator: true } as OverflowItem,
+      {
+        icon: <Strikethrough className="h-4 w-4" />,
+        label: 'Strikethrough',
+        shortcut: '⌘⇧S',
+        isActive: editor.isActive('strike'),
+        onClick: () => editor.chain().focus().toggleStrike().run(),
+      },
+      {
+        icon: <Code className="h-4 w-4" />,
+        label: 'Inline Code',
+        shortcut: '⌘⇧C',
+        isActive: editor.isActive('code'),
+        onClick: () => editor.chain().focus().toggleCode().run(),
+      },
+    ] : []),
+  ];
+
   return (
-    <div className="flex items-center gap-0.5 border-b px-2 py-1 overflow-x-auto">
-      {/* Text Formatting */}
-      <ToolbarButton
-        icon={<Bold className="h-4 w-4" />}
-        label="Bold"
-        shortcut="Cmd+B"
-        isActive={editor.isActive('bold')}
-        onClick={() => editor.chain().focus().toggleBold().run()}
-      />
-      <ToolbarButton
-        icon={<Italic className="h-4 w-4" />}
-        label="Italic"
-        shortcut="Cmd+I"
-        isActive={editor.isActive('italic')}
-        onClick={() => editor.chain().focus().toggleItalic().run()}
-      />
-      <ToolbarButton
-        icon={<Underline className="h-4 w-4" />}
-        label="Underline"
-        shortcut="Cmd+U"
-        isActive={editor.isActive('underline')}
-        onClick={() => editor.chain().focus().toggleUnderline().run()}
-      />
-      <ToolbarButton
-        icon={<Strikethrough className="h-4 w-4" />}
-        label="Strikethrough"
-        shortcut="Cmd+Shift+S"
-        isActive={editor.isActive('strike')}
-        onClick={() => editor.chain().focus().toggleStrike().run()}
-      />
-      <ToolbarButton
-        icon={<Code className="h-4 w-4" />}
-        label="Inline Code"
-        shortcut="Cmd+Shift+C"
-        isActive={editor.isActive('code')}
-        onClick={() => editor.chain().focus().toggleCode().run()}
-      />
+    <Toolbar>
+      <div ref={toolbarRef} className="flex items-center gap-1 flex-wrap">
+        {/* Undo / Redo - Always visible */}
+        <ToolbarGroup>
+          <ToolbarItem
+            icon={<Undo className="h-4 w-4" />}
+            label="Undo"
+            shortcut="⌘Z"
+            disabled={!canUndo}
+            onClick={() => editor.chain().focus().undo().run()}
+          />
+          <ToolbarItem
+            icon={<Redo className="h-4 w-4" />}
+            label="Redo"
+            shortcut="⌘⇧Z"
+            disabled={!canRedo}
+            onClick={() => editor.chain().focus().redo().run()}
+          />
+        </ToolbarGroup>
 
-      <div className="mx-1 h-4 w-px bg-border" />
+        <ToolbarSeparator />
 
-      {/* Headings */}
-      <ToolbarButton
-        icon={<Heading1 className="h-4 w-4" />}
-        label="Heading 1"
-        shortcut="Cmd+Alt+1"
-        isActive={editor.isActive('heading', { level: 1 })}
-        onClick={() => editor.chain().focus().toggleHeading({ level: 1 }).run()}
-      />
-      <ToolbarButton
-        icon={<Heading2 className="h-4 w-4" />}
-        label="Heading 2"
-        shortcut="Cmd+Alt+2"
-        isActive={editor.isActive('heading', { level: 2 })}
-        onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()}
-      />
-      <ToolbarButton
-        icon={<Heading3 className="h-4 w-4" />}
-        label="Heading 3"
-        shortcut="Cmd+Alt+3"
-        isActive={editor.isActive('heading', { level: 3 })}
-        onClick={() => editor.chain().focus().toggleHeading({ level: 3 }).run()}
-      />
+        {/* Headings & Lists - Always visible (dropdowns) */}
+        <ToolbarGroup>
+          <HeadingDropdown editor={editor} />
+          <ListDropdown editor={editor} />
+          {!isCompact && (
+            <>
+              <ToolbarItem
+                icon={<Quote className="h-4 w-4" />}
+                label="Blockquote"
+                isActive={editor.isActive('blockquote')}
+                onClick={() => editor.chain().focus().toggleBlockquote().run()}
+              />
+              <ToolbarItem
+                icon={<Code className="h-4 w-4" />}
+                label="Code Block"
+                shortcut="⌘⌥C"
+                isActive={editor.isActive('codeBlock')}
+                onClick={() => editor.chain().focus().toggleCodeBlock().run()}
+              />
+            </>
+          )}
+        </ToolbarGroup>
 
-      <div className="mx-1 h-4 w-px bg-border" />
+        <ToolbarSeparator />
 
-      {/* Lists */}
-      <ToolbarButton
-        icon={<List className="h-4 w-4" />}
-        label="Bullet List"
-        shortcut="Cmd+Shift+8"
-        isActive={editor.isActive('bulletList')}
-        onClick={() => editor.chain().focus().toggleBulletList().run()}
-      />
-      <ToolbarButton
-        icon={<ListOrdered className="h-4 w-4" />}
-        label="Ordered List"
-        shortcut="Cmd+Shift+7"
-        isActive={editor.isActive('orderedList')}
-        onClick={() => editor.chain().focus().toggleOrderedList().run()}
-      />
-      <ToolbarButton
-        icon={<CheckSquare className="h-4 w-4" />}
-        label="Task List"
-        shortcut="Cmd+Shift+9"
-        isActive={editor.isActive('taskList')}
-        onClick={() => editor.chain().focus().toggleTaskList().run()}
-      />
+        {/* Text Formatting - Core always visible */}
+        <ToolbarGroup>
+          <ToolbarItem
+            icon={<Bold className="h-4 w-4" />}
+            label="Bold"
+            shortcut="⌘B"
+            isActive={editor.isActive('bold')}
+            onClick={() => editor.chain().focus().toggleBold().run()}
+          />
+          <ToolbarItem
+            icon={<Italic className="h-4 w-4" />}
+            label="Italic"
+            shortcut="⌘I"
+            isActive={editor.isActive('italic')}
+            onClick={() => editor.chain().focus().toggleItalic().run()}
+          />
+          <ToolbarItem
+            icon={<Underline className="h-4 w-4" />}
+            label="Underline"
+            shortcut="⌘U"
+            isActive={editor.isActive('underline')}
+            onClick={() => editor.chain().focus().toggleUnderline().run()}
+          />
+          {!isVeryCompact && (
+            <>
+              <ToolbarItem
+                icon={<Strikethrough className="h-4 w-4" />}
+                label="Strikethrough"
+                shortcut="⌘⇧S"
+                isActive={editor.isActive('strike')}
+                onClick={() => editor.chain().focus().toggleStrike().run()}
+              />
+              <ToolbarItem
+                icon={<Code className="h-4 w-4" />}
+                label="Inline Code"
+                shortcut="⌘⇧C"
+                isActive={editor.isActive('code')}
+                onClick={() => editor.chain().focus().toggleCode().run()}
+              />
+            </>
+          )}
+        </ToolbarGroup>
 
-      <div className="mx-1 h-4 w-px bg-border" />
+        <ToolbarSeparator />
 
-      {/* Blocks */}
-      <ToolbarButton
-        icon={<Quote className="h-4 w-4" />}
-        label="Blockquote"
-        isActive={editor.isActive('blockquote')}
-        onClick={() => editor.chain().focus().toggleBlockquote().run()}
-      />
-      <ToolbarButton
-        icon={<Minus className="h-4 w-4" />}
-        label="Horizontal Rule"
-        onClick={() => editor.chain().focus().setHorizontalRule().run()}
-      />
-      <ToolbarButton
-        icon={<Code className="h-4 w-4" />}
-        label="Code Block"
-        shortcut="Cmd+Alt+C"
-        isActive={editor.isActive('codeBlock')}
-        onClick={() => editor.chain().focus().toggleCodeBlock().run()}
-      />
+        {/* Highlight & Link - Always visible */}
+        <ToolbarGroup>
+          <ColorHighlightPopover editor={editor} />
+          <LinkPopover editor={editor} />
+        </ToolbarGroup>
 
-      <div className="mx-1 h-4 w-px bg-border" />
+        {/* Text Alignment - Visible on medium+ screens */}
+        {!isCompact && (
+          <>
+            <ToolbarSeparator />
+            <TextAlignButtons editor={editor} />
+          </>
+        )}
 
-      {/* Links & Tables */}
-      <ToolbarButton
-        icon={<Link className="h-4 w-4" />}
-        label="Link"
-        shortcut="Cmd+K"
-        isActive={editor.isActive('link')}
-        onClick={() => {
-          const url = window.prompt('Enter URL:');
-          if (url) {
-            editor.chain().focus().setLink({ href: url }).run();
-          }
-        }}
-      />
-      <ToolbarButton
-        icon={<Table className="h-4 w-4" />}
-        label="Insert Table"
-        onClick={() =>
-          editor
-            .chain()
-            .focus()
-            .insertTable({ rows: 3, cols: 3, withHeaderRow: true })
-            .run()
-        }
-      />
-    </div>
+        {/* Superscript / Subscript - Visible on large screens */}
+        {!isCompact && (
+          <>
+            <ToolbarSeparator />
+            <ToolbarGroup>
+              <ToolbarItem
+                icon={<Superscript className="h-4 w-4" />}
+                label="Superscript"
+                isActive={editor.isActive('superscript')}
+                onClick={() => editor.chain().focus().toggleSuperscript().run()}
+              />
+              <ToolbarItem
+                icon={<Subscript className="h-4 w-4" />}
+                label="Subscript"
+                isActive={editor.isActive('subscript')}
+                onClick={() => editor.chain().focus().toggleSubscript().run()}
+              />
+            </ToolbarGroup>
+          </>
+        )}
+
+        {/* Blocks - Visible on large screens */}
+        {!isCompact && (
+          <>
+            <ToolbarSeparator />
+            <ToolbarGroup>
+              <ToolbarItem
+                icon={<Minus className="h-4 w-4" />}
+                label="Horizontal Rule"
+                onClick={() => editor.chain().focus().setHorizontalRule().run()}
+              />
+              <ToolbarItem
+                icon={<Table className="h-4 w-4" />}
+                label="Insert Table"
+                onClick={() =>
+                  editor
+                    .chain()
+                    .focus()
+                    .insertTable({ rows: 3, cols: 3, withHeaderRow: true })
+                    .run()
+                }
+              />
+            </ToolbarGroup>
+          </>
+        )}
+
+        {/* Overflow Menu - Visible when compact */}
+        {overflowItems.length > 0 && (
+          <>
+            <ToolbarSeparator />
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <ToolbarButton aria-label="More options">
+                  <MoreHorizontal className="h-4 w-4" />
+                </ToolbarButton>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="min-w-[180px]">
+                {/* Text Alignment in overflow when compact */}
+                {isCompact && (
+                  <>
+                    <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground">
+                      Text Alignment
+                    </div>
+                    <div className="flex items-center justify-center gap-1 px-2 py-1">
+                      <TextAlignButtons editor={editor} />
+                    </div>
+                    <DropdownMenuSeparator />
+                  </>
+                )}
+                
+                {overflowItems.map((item, idx) => {
+                  if (item.separator) {
+                    return <DropdownMenuSeparator key={`sep-${idx}`} />;
+                  }
+                  return (
+                    <DropdownMenuItem
+                      key={item.label}
+                      onClick={item.onClick}
+                      disabled={item.disabled}
+                      className={cn(
+                        'flex items-center gap-2 cursor-pointer',
+                        item.isActive && 'bg-accent'
+                      )}
+                    >
+                      {item.icon}
+                      <span>{item.label}</span>
+                      {item.shortcut && (
+                        <span className="ml-auto text-xs text-muted-foreground">
+                          {item.shortcut}
+                        </span>
+                      )}
+                    </DropdownMenuItem>
+                  );
+                })}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </>
+        )}
+      </div>
+    </Toolbar>
   );
 }

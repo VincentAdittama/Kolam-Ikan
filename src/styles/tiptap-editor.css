@@ -1,0 +1,147 @@
+/* Tiptap Editor Styles */
+
+/* Text Alignment */
+.ProseMirror {
+  /* Default left alignment */
+  text-align: left;
+}
+
+.ProseMirror p[style*="text-align: center"],
+.ProseMirror h1[style*="text-align: center"],
+.ProseMirror h2[style*="text-align: center"],
+.ProseMirror h3[style*="text-align: center"],
+.ProseMirror h4[style*="text-align: center"],
+.ProseMirror h5[style*="text-align: center"],
+.ProseMirror h6[style*="text-align: center"] {
+  text-align: center;
+}
+
+.ProseMirror p[style*="text-align: right"],
+.ProseMirror h1[style*="text-align: right"],
+.ProseMirror h2[style*="text-align: right"],
+.ProseMirror h3[style*="text-align: right"],
+.ProseMirror h4[style*="text-align: right"],
+.ProseMirror h5[style*="text-align: right"],
+.ProseMirror h6[style*="text-align: right"] {
+  text-align: right;
+}
+
+.ProseMirror p[style*="text-align: justify"],
+.ProseMirror h1[style*="text-align: justify"],
+.ProseMirror h2[style*="text-align: justify"],
+.ProseMirror h3[style*="text-align: justify"],
+.ProseMirror h4[style*="text-align: justify"],
+.ProseMirror h5[style*="text-align: justify"],
+.ProseMirror h6[style*="text-align: justify"] {
+  text-align: justify;
+}
+
+/* Highlight Colors */
+.ProseMirror mark {
+  border-radius: 0.15em;
+  padding: 0.1em 0.15em;
+  margin: 0 -0.15em;
+}
+
+/* Code Block Improvements */
+.ProseMirror pre {
+  background-color: hsl(var(--muted));
+  border-radius: 0.5rem;
+  padding: 1rem;
+  overflow-x: auto;
+  margin: 0.5rem 0;
+}
+
+.ProseMirror pre code {
+  background: none;
+  padding: 0;
+  font-size: 0.875rem;
+  line-height: 1.5;
+}
+
+/* Blockquote Styling */
+.ProseMirror blockquote {
+  border-left: 3px solid hsl(var(--primary));
+  padding-left: 1rem;
+  margin-left: 0;
+  color: hsl(var(--muted-foreground));
+  font-style: italic;
+}
+
+/* Horizontal Rule */
+.ProseMirror hr {
+  border: none;
+  border-top: 2px solid hsl(var(--border));
+  margin: 1.5rem 0;
+}
+
+/* Table Styling */
+.ProseMirror table {
+  border-collapse: collapse;
+  width: 100%;
+  table-layout: fixed;
+  margin: 1rem 0;
+}
+
+.ProseMirror th,
+.ProseMirror td {
+  border: 1px solid hsl(var(--border));
+  padding: 0.5rem 0.75rem;
+  vertical-align: top;
+  text-align: left;
+}
+
+.ProseMirror th {
+  background-color: hsl(var(--muted));
+  font-weight: 600;
+}
+
+.ProseMirror tr:nth-child(even) td {
+  background-color: hsl(var(--muted) / 0.3);
+}
+
+/* Task List Styling */
+.ProseMirror ul[data-type="taskList"] {
+  list-style: none;
+  padding-left: 0;
+}
+
+.ProseMirror ul[data-type="taskList"] li {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+}
+
+.ProseMirror ul[data-type="taskList"] li > label {
+  flex-shrink: 0;
+  margin-top: 0.15rem;
+}
+
+.ProseMirror ul[data-type="taskList"] li > div {
+  flex: 1;
+}
+
+/* Subscript and Superscript */
+.ProseMirror sub {
+  font-size: 0.75em;
+  vertical-align: sub;
+}
+
+.ProseMirror sup {
+  font-size: 0.75em;
+  vertical-align: super;
+}
+
+/* Selection Styling */
+.ProseMirror ::selection {
+  background-color: hsl(var(--primary) / 0.2);
+}
+
+/* Placeholder Styling */
+.ProseMirror p.is-editor-empty:first-child::before {
+  content: attr(data-placeholder);
+  float: left;
+  color: hsl(var(--muted-foreground));
+  pointer-events: none;
+  height: 0;
+}
