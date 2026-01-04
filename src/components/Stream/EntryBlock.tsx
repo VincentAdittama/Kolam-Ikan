@@ -325,12 +325,10 @@ export function EntryBlock({ entry }: EntryBlockProps) {
       <div className="flex items-center justify-between border-b px-4 py-2">
         <div className="flex items-center gap-3">
           {/* Staging checkbox (only for user entries) */}
-          {isUser && (
-            <Checkbox
-              checked={isStaged}
-              onCheckedChange={handleToggleStaging}
-            />
-          )}
+          <Checkbox
+            checked={isStaged}
+            onCheckedChange={handleToggleStaging}
+          />
 
           {/* Avatar - Show ProfileBadge for user entries with profile selector */}
           {isUser ? (

@@ -169,6 +169,48 @@ function safeExtractTag(text: string, tagName: string): string | null {
 }
 
 /**
+ * Format raw parse warnings into a user-friendly message
+ */
+export function formatParseErrors(warnings: string[]): string {
+  if (!warnings || warnings.length === 0)
+    return "Unknown error parsing response.";
+
+  // Prioritize most critical errors
+  if (warnings.some((w) => w.includes("placeholder markers"))) {
+    return "The AI response contains placeholder tags (like [INSERT_KEY_HERE]). Please ask the AI to provide the actual bridge key.";
+  }
+
+  if (warnings.some((w) => w.includes("Invalid bridge key format"))) {
+    const keyMatch = warnings
+      .find((w) => w.includes("Invalid bridge key format"))
+      ?.match(/"([^"]+)"/);
+    const key = keyMatch ? keyMatch[1] : "unknown";
+    return `The AI provided an invalid bridge key: "${key}". The key must be alphanumeric.`;
+  }
+
+  if (warnings.some((w) => w.includes("Missing bridge key"))) {
+    return "The AI response is missing the 'bridge' attribute in the <kolam_response> tag.";
+  }
+
+  const missingTags = warnings
+    .filter((w) => w.includes("Missing <"))
+    .map((w) => w.match(/<([^>]+)>/)?.[0])
+    .filter(Boolean);
+
+  if (missingTags.length > 0) {
+    return `The AI response is missing required tags: ${missingTags.join(
+      ", "
+    )}. Please ensure the AI uses the full <kolam_response> structure.`;
+  }
+
+  if (warnings.some((w) => w.includes("Content extraction failed"))) {
+    return "Could not find any content to import. The AI response might be empty or severely malformed.";
+  }
+
+  return "The AI response format is incorrect. Please ensure the AI wraps its response in the <kolam_response> tag with all required sub-tags.";
+}
+
+/**
  * Parse and sanitize AI response from clipboard
  * Supports both legacy format (<!-- bridge:xxx -->) and new structured format
  * Designed to be robust and handle malformed AI responses gracefully
@@ -355,6 +397,78 @@ export function parseAIResponse(rawText: string): ParsedAIResponse {
   if (!content || content.length === 0) {
     content = rawText;
     parseWarnings.push("Content extraction failed completely - using raw text");
+  }
+
+  // STRICT VALIDATION: Reject malformed structured responses
+  // A valid structured response MUST have:
+  // 1. A valid alphanumeric bridge key (no placeholders like [INSERT_KEY_HERE])
+  // 2. Required elements: ai_model, summary, and content
+  if (isStructured) {
+    const validationErrors: string[] = [];
+
+    // Validate bridge key - must be alphanumeric only, no brackets or placeholders
+    if (!bridgeKey) {
+      validationErrors.push("Missing bridge key");
+    } else if (!/^[a-zA-Z0-9]+$/.test(bridgeKey)) {
+      validationErrors.push(`Invalid bridge key format: "${bridgeKey}"`);
+    }
+
+    // Check for placeholder patterns in the bridge attribute
+    const openingTag = rawText.match(/<kolam_response([^>]*)>/i);
+    if (openingTag) {
+      const attrs = openingTag[1];
+      // Detect placeholder patterns like [INSERT_KEY_HERE], {BRIDGE_KEY}, etc.
+      if (/bridge=["'][^"']*[\[\]{}<>][^"']*["']/i.test(attrs)) {
+        validationErrors.push("Bridge key contains placeholder markers");
+      }
+    }
+
+    // Validate required elements
+    if (!aiModel) {
+      validationErrors.push("Missing <ai_model> element");
+    }
+    if (!summary) {
+      validationErrors.push("Missing <summary> element");
+    }
+
+    // Check if content was properly extracted (not fallback)
+    const contentWasFallback = parseWarnings.some(
+      (w) =>
+        w.includes("fallback content extraction") ||
+        w.includes("last-resort content extraction")
+    );
+    if (contentWasFallback && !safeExtractTag(rawText, "content")) {
+      validationErrors.push("Missing <content> element");
+    }
+
+    // If validation failed, reject as structured response
+    if (validationErrors.length > 0) {
+      console.warn(
+        "[Bridge Parser] Structured response validation failed:",
+        validationErrors
+      );
+      parseWarnings.push(...validationErrors);
+      parseWarnings.push(
+        "Response rejected - does not match required kolam_response format"
+      );
+
+      // Reset to unstructured state
+      isStructured = false;
+      bridgeKey = null;
+      aiModel = null;
+      directive = null;
+      summary = null;
+
+      // Use raw text as content (after cleaning)
+      content = rawText
+        .replace(/<kolam_response[^>]*>/gi, "")
+        .replace(/<\/kolam_response>/gi, "")
+        .replace(/<\/?ai_model>/gi, "")
+        .replace(/<\/?summary>/gi, "")
+        .replace(/<\/?content>/gi, "")
+        .replace(/<\/?sources>/gi, "")
+        .trim();
+    }
   }
 
   // Log warnings for debugging

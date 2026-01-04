@@ -47,6 +47,7 @@ import {
   generateBridgePrompt,
   parseAIResponse,
   contentToProseMirror,
+  formatParseErrors,
 } from "@/services/bridge";
 import { SidebarBranchGraph } from "@/components/Branch/SidebarBranchGraph";
 import { FullscreenBranchGraph } from "@/components/Branch/FullscreenBranchGraph";
@@ -215,6 +216,7 @@ export function RightPanel() {
       devLog.apiSuccess("delete_pending_block");
 
       setPendingBlock(null);
+      setExportError(null);
     } catch (error) {
       devLog.apiError("cancel_bridge", error);
       const errorMessage =
@@ -269,29 +271,40 @@ export function RightPanel() {
         parseWarnings,
       });
 
-      // Log warnings but continue
-      if (parseWarnings && parseWarnings.length > 0) {
-        console.warn("[Bridge Import] Parse warnings:", parseWarnings);
+      // Validate structured response
+      if (!isStructured) {
+        const errorMsg = formatParseErrors(parseWarnings);
+        devLog.error("Bridge import blocked", { errorMsg, parseWarnings });
+        setExportError(errorMsg);
+        return;
       }
 
-      // Validate bridge key - be lenient
-      if (!bridgeKey) {
-        // Show warning but allow import
-        devLog.error(
-          "Bridge key warning",
-          "No bridge key detected in response"
-        );
-        console.warn("No bridge key detected - proceeding anyway");
-      } else if (bridgeKey !== pendingBlock.bridgeKey) {
-        // Log mismatch but still allow import with warning
+      // Strict bridge key validation
+      if (bridgeKey !== pendingBlock.bridgeKey) {
+        const errorMsg = bridgeKey 
+          ? `Bridge key mismatch. Expected "${pendingBlock.bridgeKey}" but found "${bridgeKey}".`
+          : `Bridge key missing in the AI response. Expected "${pendingBlock.bridgeKey}".`;
+          
         devLog.error("Bridge key mismatch", {
           expected: pendingBlock.bridgeKey,
           found: bridgeKey,
         });
-        console.warn(
-          `Bridge key mismatch: expected ${pendingBlock.bridgeKey}, got ${bridgeKey} - proceeding anyway`
-        );
-        // Don't return - allow the import to proceed
+        setExportError(errorMsg);
+        return;
+      }
+
+      devLog.action("Parsed response", {
+        bridgeKey,
+        aiModel,
+        directive,
+        isStructured,
+        hasContent: !!content,
+        parseWarnings,
+      });
+
+      // Log warnings to console for debugging but don't show to user (user sees formatted error if it blocks)
+      if (parseWarnings && parseWarnings.length > 0) {
+        console.debug("[Bridge Import] Internal parse warnings:", parseWarnings);
       }
 
       // Safety check - ensure we have content
@@ -357,6 +370,7 @@ export function RightPanel() {
       devLog.apiSuccess("delete_pending_block");
       devLog.bridgeImport(pendingBlock.bridgeKey, true);
       setPendingBlock(null);
+      setExportError(null);
     } catch (error) {
       devLog.apiError("bridge_import", error);
       devLog.bridgeImport(pendingBlock?.bridgeKey || "unknown", false);
@@ -369,9 +383,9 @@ export function RightPanel() {
   };
 
   return (
-    <div className="flex h-full w-[320px] flex-col border-l bg-muted/30">
-      {/* Tab Navigation */}
-      <div className="flex border-b">
+    <div className="flex h-full w-[320px] flex-col border-l bg-muted/30 overflow-hidden">
+      {/* Tab Navigation - Sticky Header */}
+      <div className="sticky top-0 z-20 flex border-b bg-background/80 backdrop-blur-md">
         <button
           onClick={() => setActiveTab("context")}
           className={cn(
@@ -430,176 +444,177 @@ export function RightPanel() {
 
       {/* Context Tab */}
       {activeTab === "context" && (
-        <>
-          {/* Profile Selector - Sets default profile for new entries */}
-          <div className="border-b p-4">
-            <div className="flex items-center justify-between">
-              <h3 className="text-sm font-medium">Active Profile</h3>
-              <span className="text-xs text-muted-foreground">for new entries</span>
-            </div>
-            <div className="mt-2">
-              <ProfilePicker
-                onProfileSelect={(profile) => {
-                  devLog.action("Set active profile", { profileId: profile.id, name: profile.name });
-                  setActiveProfileId(profile.id);
-                }}
-                showCreateButton={true}
-              />
-            </div>
-          </div>
-
-          {/* Directive Selector */}
-          <div className="border-b p-4">
-            <h3 className="text-sm font-medium mb-3">Directive</h3>
-            <div className="space-y-2">
-              {DIRECTIVE_OPTIONS.map((option) => (
-                <button
-                  key={option.value}
-                  onClick={() => {
-                    devLog.selectDirective(option.value);
-                    setSelectedDirective(option.value);
+        <ScrollArea className="flex-1">
+          <div className="flex flex-col min-h-full">
+            {/* Profile Selector - Sets default profile for new entries */}
+            <div className="border-b p-4">
+              <div className="flex items-center justify-between">
+                <h3 className="text-sm font-medium">Active Profile</h3>
+                <span className="text-xs text-muted-foreground">for new entries</span>
+              </div>
+              <div className="mt-2">
+                <ProfilePicker
+                  onProfileSelect={(profile) => {
+                    devLog.action("Set active profile", { profileId: profile.id, name: profile.name });
+                    setActiveProfileId(profile.id);
                   }}
-                  className={cn(
-                    "flex w-full items-center gap-3 rounded-md px-3 py-2 text-left transition-colors",
-                    selectedDirective === option.value
-                      ? "bg-primary text-primary-foreground"
-                      : "hover:bg-accent"
-                  )}
-                >
-                  {option.icon}
-                  <div>
-                    <div className="font-medium">{option.label}</div>
-                    <div
-                      className={cn(
-                        "text-xs",
-                        selectedDirective === option.value
-                          ? "text-primary-foreground/80"
-                          : "text-muted-foreground"
-                      )}
-                    >
-                      {option.description}
+                  showCreateButton={true}
+                />
+              </div>
+            </div>
+
+            {/* Directive Selector */}
+            <div className="border-b p-4">
+              <h3 className="text-sm font-medium mb-3">Directive</h3>
+              <div className="space-y-2">
+                {DIRECTIVE_OPTIONS.map((option) => (
+                  <button
+                    key={option.value}
+                    onClick={() => {
+                      devLog.selectDirective(option.value);
+                      setSelectedDirective(option.value);
+                    }}
+                    className={cn(
+                      "flex w-full items-center gap-3 rounded-md px-3 py-2 text-left transition-colors",
+                      selectedDirective === option.value
+                        ? "bg-primary text-primary-foreground"
+                        : "hover:bg-accent"
+                    )}
+                  >
+                    {option.icon}
+                    <div>
+                      <div className="font-medium">{option.label}</div>
+                      <div
+                        className={cn(
+                          "text-xs",
+                          selectedDirective === option.value
+                            ? "text-primary-foreground/80"
+                            : "text-muted-foreground"
+                        )}
+                      >
+                        {option.description}
+                      </div>
                     </div>
-                  </div>
-                </button>
-              ))}
+                  </button>
+                ))}
+              </div>
             </div>
-          </div>
 
-          {/* Staging Preview */}
-          <div className="border-b p-4">
-            <div className="flex items-center justify-between mb-3">
-              <h3 className="text-sm font-medium">
-                Staged Context
+            {/* Staging Preview */}
+            <div className="border-b p-4">
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="text-sm font-medium">
+                  Staged Context
+                  {stagedEntries.length > 0 && (
+                    <span className="ml-2 inline-flex h-5 w-5 items-center justify-center rounded-full bg-primary text-xs text-primary-foreground">
+                      {stagedEntries.length}
+                    </span>
+                  )}
+                </h3>
                 {stagedEntries.length > 0 && (
-                  <span className="ml-2 inline-flex h-5 w-5 items-center justify-center rounded-full bg-primary text-xs text-primary-foreground">
-                    {stagedEntries.length}
-                  </span>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => {
+                      devLog.clearStaging(stagedEntries.length);
+                      clearAllStaging();
+                    }}
+                    className="h-6 text-xs"
+                  >
+                    Clear all
+                  </Button>
                 )}
-              </h3>
-              {stagedEntries.length > 0 && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => {
-                    devLog.clearStaging(stagedEntries.length);
-                    clearAllStaging();
-                  }}
-                  className="h-6 text-xs"
-                >
-                  Clear all
-                </Button>
+              </div>
+
+              {stagedEntries.length === 0 ? (
+                <p className="text-sm text-muted-foreground">
+                  Select entries to include in your prompt
+                </p>
+              ) : (
+                <div className="max-h-[200px] overflow-y-auto">
+                  <div className="space-y-1">
+                    {stagedEntries.map((entry) => (
+                      <div
+                        key={entry.id}
+                        className="flex items-center justify-between rounded-md bg-accent/50 px-2 py-1 text-sm"
+                      >
+                        <span className="truncate">
+                          #{entry.sequenceId} ({entry.role})
+                        </span>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-5 w-5"
+                          onClick={() => {
+                            devLog.unstage(entry.id, entry.sequenceId);
+                            unstageEntry(entry.id);
+                          }}
+                        >
+                          <X className="h-3 w-3" />
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
               )}
             </div>
 
-            {stagedEntries.length === 0 ? (
-              <p className="text-sm text-muted-foreground">
-                Select entries to include in your prompt
-              </p>
-            ) : (
-              <ScrollArea className="max-h-[120px]">
-                <div className="space-y-1">
-                  {stagedEntries.map((entry) => (
-                    <div
-                      key={entry.id}
-                      className="flex items-center justify-between rounded-md bg-accent/50 px-2 py-1 text-sm"
-                    >
-                      <span className="truncate">
-                        #{entry.sequenceId} ({entry.role})
-                      </span>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-5 w-5"
-                        onClick={() => {
-                          devLog.unstage(entry.id, entry.sequenceId);
-                          unstageEntry(entry.id);
-                        }}
-                      >
-                        <X className="h-3 w-3" />
-                      </Button>
-                    </div>
-                  ))}
+            {/* Token Counter */}
+            <div className="border-b p-4">
+              <div className="flex items-center justify-between mb-2">
+                <h3 className="text-sm font-medium">Context Size</h3>
+                <Select
+                  value={selectedModel}
+                  onValueChange={(v) => {
+                    devLog.selectModel(v);
+                    setSelectedModel(v as ModelType);
+                  }}
+                >
+                  <SelectTrigger className="h-7 w-[130px] text-xs">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {Object.values(MODEL_CONFIGS).map((config) => (
+                      <SelectItem key={config.id} value={config.id}>
+                        {config.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Progress
+                  value={tokenUsage.percentage}
+                  className="h-2"
+                  indicatorClassName={cn(
+                    tokenUsage.status === "normal" && "bg-blue-500",
+                    tokenUsage.status === "warning" && "bg-orange-500",
+                    tokenUsage.status === "critical" &&
+                      "bg-red-500 animate-pulse",
+                    tokenUsage.status === "exceeded" && "bg-red-600"
+                  )}
+                />
+                <div className="flex justify-between text-xs text-muted-foreground">
+                  <span>{formatTokenCount(tokenUsage.used)} tokens</span>
+                  <span>
+                    {Math.round(tokenUsage.percentage)}% of{" "}
+                    {formatTokenCount(tokenUsage.limit)}
+                  </span>
                 </div>
-              </ScrollArea>
-            )}
-          </div>
-
-          {/* Token Counter */}
-          <div className="border-b p-4">
-            <div className="flex items-center justify-between mb-2">
-              <h3 className="text-sm font-medium">Context Size</h3>
-              <Select
-                value={selectedModel}
-                onValueChange={(v) => {
-                  devLog.selectModel(v);
-                  setSelectedModel(v as ModelType);
-                }}
-              >
-                <SelectTrigger className="h-7 w-[130px] text-xs">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {Object.values(MODEL_CONFIGS).map((config) => (
-                    <SelectItem key={config.id} value={config.id}>
-                      {config.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="space-y-2">
-              <Progress
-                value={tokenUsage.percentage}
-                className="h-2"
-                indicatorClassName={cn(
-                  tokenUsage.status === "normal" && "bg-blue-500",
-                  tokenUsage.status === "warning" && "bg-orange-500",
-                  tokenUsage.status === "critical" &&
-                    "bg-red-500 animate-pulse",
-                  tokenUsage.status === "exceeded" && "bg-red-600"
-                )}
-              />
-              <div className="flex justify-between text-xs text-muted-foreground">
-                <span>{formatTokenCount(tokenUsage.used)} tokens</span>
-                <span>
-                  {Math.round(tokenUsage.percentage)}% of{" "}
-                  {formatTokenCount(tokenUsage.limit)}
-                </span>
               </div>
             </div>
-          </div>
 
-          {/* Action Buttons */}
-          <div className="flex-1" />
+            {/* Action Buttons */}
+            <div className="flex-1" />
 
-          <div className="p-4 space-y-2">
-            {exportError && (
-              <div className="flex items-center gap-2 rounded-md bg-destructive/10 p-2 text-sm text-destructive">
-                <AlertCircle className="h-4 w-4" />
-                <span className="text-xs">{exportError}</span>
-              </div>
-            )}
+            <div className="p-4 space-y-2">
+              {exportError && (
+                <div className="flex items-center gap-2 rounded-md bg-destructive/10 p-2 text-sm text-destructive">
+                  <AlertCircle className="h-4 w-4" />
+                  <span className="text-xs">{exportError}</span>
+                </div>
+              )}
 
             {pendingBlock && (
               <Tooltip>
@@ -660,7 +675,8 @@ export function RightPanel() {
               </p>
             )}
           </div>
-        </>
+        </div>
+      </ScrollArea>
       )}
     </div>
   );
