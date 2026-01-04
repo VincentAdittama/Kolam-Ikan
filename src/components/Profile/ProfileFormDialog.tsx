@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -18,34 +18,64 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { useCreateProfile } from '@/hooks/useQueries';
+import { useCreateProfile, useUpdateProfile } from '@/hooks/useQueries';
 import { PROFILE_COLORS, type Profile, type ProfileRole } from '@/types';
 import { cn } from '@/lib/utils';
 
-interface CreateProfileDialogProps {
+interface ProfileFormDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onProfileCreated?: (profile: Profile) => void;
+  onProfileSaved?: (profile: Profile) => void;
+  initialProfile?: Profile;
 }
 
-export function CreateProfileDialog({
+export function ProfileFormDialog({
   open,
   onOpenChange,
-  onProfileCreated,
-}: CreateProfileDialogProps) {
+  onProfileSaved,
+  initialProfile,
+}: ProfileFormDialogProps) {
+  const isEditing = !!initialProfile;
+
   const [name, setName] = useState('');
   const [role, setRole] = useState<ProfileRole>('friend');
-  const [color, setColor] = useState(PROFILE_COLORS[1]); // Start with second color (pink)
+  const [color, setColor] = useState(PROFILE_COLORS[1]); 
   const [initials, setInitials] = useState('');
   const [bio, setBio] = useState('');
 
   const createProfile = useCreateProfile();
+  const updateProfile = useUpdateProfile();
+
+  // Reset or initialize form when dialog opens or initialProfile changes
+  useEffect(() => {
+    if (open) {
+      if (initialProfile) {
+        setName(initialProfile.name);
+        setRole(initialProfile.role);
+        setColor(initialProfile.color || PROFILE_COLORS[1]);
+        setInitials(initialProfile.initials || '');
+        setBio(initialProfile.bio || '');
+      } else {
+        // Reset defaults for create mode
+        setName('');
+        setRole('friend');
+        setColor(PROFILE_COLORS[1]);
+        setInitials('');
+        setBio('');
+      }
+    }
+  }, [open, initialProfile]);
 
   // Auto-generate initials from name
   const handleNameChange = (value: string) => {
     setName(value);
-    if (!initials || initials === generateInitials(name)) {
-      setInitials(generateInitials(value));
+    // Only auto-generate if user hasn't manually set initials (or if it matches auto-generated)
+    // For simplicity in edit mode, we might not want to overwrite existing initials unless empty
+    if (!initials || (!isEditing && initials === generateInitials(name))) {
+       setInitials(generateInitials(value));
+    } else if (isEditing && initials === generateInitials(initialProfile?.name || '')) {
+       // If editing and initials matched previous name, update them
+       setInitials(generateInitials(value));
     }
   };
 
@@ -59,39 +89,63 @@ export function CreateProfileDialog({
       .toUpperCase();
   };
 
-  const handleCreate = async () => {
+  const handleSave = async () => {
     if (!name.trim()) return;
 
     try {
-      const profile = await createProfile.mutateAsync({
-        name: name.trim(),
-        role,
-        color,
-        initials: initials || generateInitials(name),
-        bio: bio.trim() || undefined,
-      });
+      let savedProfile: Profile;
+
+      if (isEditing && initialProfile) {
+        await updateProfile.mutateAsync({
+          profileId: initialProfile.id,
+          input: {
+            name: name.trim(),
+            role,
+            color,
+            initials: initials || generateInitials(name),
+            bio: bio.trim() || undefined,
+          },
+        });
+        // We don't get the updated profile back from updateProfile mutation result usually 
+        // unless we fetch it or the API returns it. 
+        // Assuming optimistic update or invalidation handles it.
+        // But let's construct it for callback if needed, or rely on invalidation.
+        savedProfile = { ...initialProfile, 
+            name: name.trim(), 
+            role, 
+            color, 
+            initials: initials || generateInitials(name),
+            bio: bio.trim() || undefined,
+            updatedAt: Date.now()
+        };
+      } else {
+        savedProfile = await createProfile.mutateAsync({
+          name: name.trim(),
+          role,
+          color,
+          initials: initials || generateInitials(name),
+          bio: bio.trim() || undefined,
+        });
+      }
       
-      // Reset form
-      setName('');
-      setRole('friend');
-      setColor(PROFILE_COLORS[1]);
-      setInitials('');
-      setBio('');
-      
-      onProfileCreated?.(profile);
+      onProfileSaved?.(savedProfile);
       onOpenChange(false);
     } catch (error) {
-      console.error('Failed to create profile:', error);
+      console.error('Failed to save profile:', error);
     }
   };
+
+  const isPending = createProfile.isPending || updateProfile.isPending;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Create New Profile</DialogTitle>
+          <DialogTitle>{isEditing ? 'Edit Profile' : 'Create New Profile'}</DialogTitle>
           <DialogDescription>
-            Create a profile to track contributions from different voices and perspectives.
+            {isEditing 
+              ? 'Update profile details.' 
+              : 'Create a profile to track contributions from different voices and perspectives.'}
           </DialogDescription>
         </DialogHeader>
 
@@ -185,10 +239,10 @@ export function CreateProfileDialog({
             Cancel
           </Button>
           <Button
-            onClick={handleCreate}
-            disabled={!name.trim() || createProfile.isPending}
+            onClick={handleSave}
+            disabled={!name.trim() || isPending}
           >
-            {createProfile.isPending ? 'Creating...' : 'Create Profile'}
+            {isPending ? 'Saving...' : (isEditing ? 'Save Changes' : 'Create Profile')}
           </Button>
         </DialogFooter>
       </DialogContent>

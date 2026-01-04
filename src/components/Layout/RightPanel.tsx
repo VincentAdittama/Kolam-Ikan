@@ -51,7 +51,7 @@ import {
 } from "@/services/bridge";
 import { SidebarBranchGraph } from "@/components/Branch/SidebarBranchGraph";
 import { FullscreenBranchGraph } from "@/components/Branch/FullscreenBranchGraph";
-import { ProfilePicker } from "@/components/Profile";
+import { ProfilePicker, ManageProfilesDialog } from "@/components/Profile";
 import * as api from "@/services/api";
 
 type PanelTab = "context" | "branches";
@@ -106,6 +106,7 @@ export function RightPanel() {
   const [exportError, setExportError] = React.useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<PanelTab>("context");
   const [isFullscreenGraphOpen, setIsFullscreenGraphOpen] = useState(false);
+  const [showManageProfiles, setShowManageProfiles] = useState(false);
 
   // Get staged entries
   const stagedEntries = useMemo(() => {
@@ -450,7 +451,17 @@ export function RightPanel() {
             <div className="border-b p-4">
               <div className="flex items-center justify-between">
                 <h3 className="text-sm font-medium">Active Profile</h3>
-                <span className="text-xs text-muted-foreground">for new entries</span>
+                <div className="flex items-center gap-2">
+                   <Button 
+                      variant="ghost" 
+                      size="sm" 
+                      className="h-6 text-xs px-2 text-muted-foreground hover:text-foreground"
+                      onClick={() => setShowManageProfiles(true)}
+                   >
+                      <Settings className="h-3 w-3 mr-1" />
+                      Manage
+                   </Button>
+                </div>
               </div>
               <div className="mt-2">
                 <ProfilePicker
@@ -678,6 +689,11 @@ export function RightPanel() {
         </div>
       </ScrollArea>
       )}
+      
+      <ManageProfilesDialog 
+        open={showManageProfiles} 
+        onOpenChange={setShowManageProfiles} 
+      />
     </div>
   );
 }

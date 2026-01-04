@@ -58,8 +58,11 @@ export async function updateProfile(
   return invokeWithLogging("update_profile", { profileId, input });
 }
 
-export async function deleteProfile(profileId: string): Promise<void> {
-  return invokeWithLogging("delete_profile", { profileId });
+export async function deleteProfile(
+  profileId: string,
+  reassignToId?: string
+): Promise<void> {
+  return invokeWithLogging("delete_profile", { profileId, reassignToId });
 }
 
 export async function getDefaultProfile(): Promise<Profile> {

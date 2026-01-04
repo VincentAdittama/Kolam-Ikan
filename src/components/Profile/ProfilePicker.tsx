@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Check, ChevronDown, Plus, User } from 'lucide-react';
+import { Check, ChevronDown, Plus, User, Settings } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -9,7 +9,8 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { ProfileBadge } from './ProfileBadge';
-import { CreateProfileDialog } from './CreateProfileDialog';
+import { ProfileFormDialog } from './ProfileFormDialog';
+import { ManageProfilesDialog } from './ManageProfilesDialog';
 import { useAppStore } from '@/store/appStore';
 import { useProfiles, useDefaultProfile } from '@/hooks/useQueries';
 import type { Profile } from '@/types';
@@ -29,6 +30,7 @@ export function ProfilePicker({
   showCreateButton = true,
 }: ProfilePickerProps) {
   const [showCreateDialog, setShowCreateDialog] = useState(false);
+  const [showManageDialog, setShowManageDialog] = useState(false);
   const { profiles, defaultProfile, activeProfileId } = useAppStore();
   
   // Fetch profiles on mount
@@ -95,13 +97,27 @@ export function ProfilePicker({
               </DropdownMenuItem>
             </>
           )}
+          
+          <DropdownMenuSeparator />
+          <DropdownMenuItem
+            onClick={() => setShowManageDialog(true)}
+            className="flex items-center gap-2 cursor-pointer text-muted-foreground"
+          >
+            <Settings className="h-4 w-4" />
+            <span>Manage Profiles</span>
+          </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
 
-      <CreateProfileDialog
+      <ManageProfilesDialog 
+        open={showManageDialog} 
+        onOpenChange={setShowManageDialog} 
+      />
+
+      <ProfileFormDialog
         open={showCreateDialog}
         onOpenChange={setShowCreateDialog}
-        onProfileCreated={(profile: Profile) => {
+        onProfileSaved={(profile: Profile) => {
           onProfileSelect(profile);
           setShowCreateDialog(false);
         }}

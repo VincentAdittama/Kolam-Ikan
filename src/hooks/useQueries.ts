@@ -81,8 +81,14 @@ export function useDeleteProfile() {
   const { removeProfile } = useAppStore();
 
   return useMutation({
-    mutationFn: (profileId: string) => api.deleteProfile(profileId),
-    onSuccess: (_, profileId) => {
+    mutationFn: ({
+      profileId,
+      reassignToId,
+    }: {
+      profileId: string;
+      reassignToId?: string;
+    }) => api.deleteProfile(profileId, reassignToId),
+    onSuccess: (_, { profileId }) => {
       removeProfile(profileId);
       queryClient.invalidateQueries({ queryKey: ["profiles"] });
     },

@@ -182,7 +182,11 @@ pub fn update_profile(
 }
 
 #[tauri::command]
-pub fn delete_profile(db: State<Database>, profile_id: String) -> Result<(), String> {
+pub fn delete_profile(
+    db: State<Database>,
+    profile_id: String,
+    reassign_to_id: Option<String>,
+) -> Result<(), String> {
     let conn = db.conn.lock().map_err(|e| e.to_string())?;
 
     // Check if this is the default profile
@@ -208,10 +212,40 @@ pub fn delete_profile(db: State<Database>, profile_id: String) -> Result<(), Str
         .map_err(|e| e.to_string())?;
 
     if entry_count > 0 {
-        return Err(format!(
-            "Cannot delete profile with {} associated entries. Reassign entries first.",
-            entry_count
-        ));
+        match reassign_to_id {
+            Some(new_profile_id) => {
+                // Verify new profile exists
+                let exists: i32 = conn
+                    .query_row(
+                        "SELECT COUNT(*) FROM profiles WHERE id = ?1",
+                        params![new_profile_id],
+                        |row| row.get(0),
+                    )
+                    .map_err(|e| e.to_string())?;
+
+                if exists == 0 {
+                    return Err("Reassignment profile does not exist".to_string());
+                }
+
+                if new_profile_id == profile_id {
+                    return Err("Cannot reassign to the profile being deleted".to_string());
+                }
+
+                // Reassign entries
+                let now = chrono::Utc::now().timestamp_millis();
+                conn.execute(
+                    "UPDATE entries SET profile_id = ?1, updated_at = ?2 WHERE profile_id = ?3",
+                    params![new_profile_id, now, profile_id],
+                )
+                .map_err(|e| e.to_string())?;
+            }
+            None => {
+                return Err(format!(
+                    "Cannot delete profile with {} associated entries. Reassign entries first.",
+                    entry_count
+                ));
+            }
+        }
     }
 
     conn.execute("DELETE FROM profiles WHERE id = ?1", params![profile_id])

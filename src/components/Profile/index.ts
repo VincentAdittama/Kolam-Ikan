@@ -1,3 +1,4 @@
 export { ProfileBadge } from "./ProfileBadge";
 export { ProfilePicker } from "./ProfilePicker";
-export { CreateProfileDialog } from "./CreateProfileDialog";
+export { ProfileFormDialog } from "./ProfileFormDialog";
+export { ManageProfilesDialog } from "./ManageProfilesDialog";
