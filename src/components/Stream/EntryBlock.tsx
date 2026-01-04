@@ -48,6 +48,7 @@ import type { Entry } from '@/types';
 import type { JSONContent } from '@tiptap/react';
 import { getAIProviderIcon, getAIProviderColor } from '@/types';
 import * as api from '@/services/api';
+import { contentToProseMirror } from '@/services/bridge';
 import { EditorToolbar } from './EditorToolbar';
 import { VersionHistoryDialog } from './VersionHistoryDialog';
 import { CommitDialog } from './CommitDialog';
@@ -148,11 +149,6 @@ export function EntryBlock({ entry }: EntryBlockProps) {
       TableHeader,
     ],
     content: entry.content,
-    editorProps: {
-      attributes: {
-        class: 'prose prose-sm dark:prose-invert max-w-none focus:outline-none min-h-[60px]',
-      },
-    },
     onUpdate: ({ editor }) => {
       const json = editor.getJSON();
       devLog.editorAction('Content update', { entryId: entry.id, sequenceId: entry.sequenceId });
@@ -164,6 +160,29 @@ export function EntryBlock({ entry }: EntryBlockProps) {
     },
     onBlur: () => {
       devLog.blur(`Entry editor #${entry.sequenceId}`, { entryId: entry.id });
+    },
+    editorProps: {
+      attributes: {
+        class: 'prose prose-sm dark:prose-invert max-w-none focus:outline-none min-h-[60px]',
+      },
+      handlePaste: (view, event) => {
+        const text = event.clipboardData?.getData('text/plain');
+        if (text && text.trim().startsWith('|') && text.includes('|') && text.includes('\n')) {
+          // It looks like a markdown table
+          const prosemirrorJSON = contentToProseMirror(text);
+          if (prosemirrorJSON.content && prosemirrorJSON.content.length > 0) {
+            // Find the table node (it might be wrapped in a doc, which contentToProseMirror returns)
+            const tableNode = prosemirrorJSON.content.find(n => n.type === 'table');
+            if (tableNode) {
+              devLog.editorAction('Markdown table pasted', { entryId: entry.id });
+              const node = view.state.schema.nodeFromJSON(tableNode);
+              view.dispatch(view.state.tr.replaceSelectionWith(node));
+              return true;
+            }
+          }
+        }
+        return false;
+      }
     },
   });
 
