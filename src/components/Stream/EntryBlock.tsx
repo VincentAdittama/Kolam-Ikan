@@ -42,7 +42,7 @@ import {
 import { cn, formatEntryTime, debounce } from '@/lib/utils';
 import { devLog } from '@/lib/devLogger';
 import { useAppStore } from '@/store/appStore';
-import { useLatestVersion, useUpdateEntryProfile } from '@/hooks/useQueries';
+import { useLatestVersion, useUpdateEntryProfile, useBulkUpdateEntryProfile } from '@/hooks/useQueries';
 import { useStreamRefetch } from '@/hooks/useStreamRefetch';
 import type { Entry, Profile } from '@/types';
 import type { JSONContent } from '@tiptap/react';
@@ -96,6 +96,7 @@ export function EntryBlock({ entry, isCompact = false }: EntryBlockProps) {
     triggerBulkAction,
     clearAllStaging,
     activeStreamId,
+    entries,
   } = useAppStore();
 
   // Get profile for this entry
@@ -130,6 +131,7 @@ export function EntryBlock({ entry, isCompact = false }: EntryBlockProps) {
   
   // Hook for updating entry profile
   const updateEntryProfile = useUpdateEntryProfile();
+  const bulkUpdateEntryProfile = useBulkUpdateEntryProfile();
   
   // Fetch latest version to check for uncommitted changes
   const { data: latestVersion } = useLatestVersion(entry.id);
@@ -139,9 +141,20 @@ export function EntryBlock({ entry, isCompact = false }: EntryBlockProps) {
   
   // Handle profile change for this entry
   const handleProfileChange = useCallback((profileId: string | null) => {
-    devLog.action('Change entry profile', { entryId: entry.id, profileId });
-    updateEntryProfile.mutate({ entryId: entry.id, profileId });
-  }, [entry.id, updateEntryProfile]);
+    // If this entry is selected and multiple are selected, do a bulk update
+    if (stagedEntryIds.has(entry.id) && stagedEntryIds.size > 1) {
+      // Filter selectedIds to only include USER entries
+      const userSelectedIds = entries
+        .filter(e => stagedEntryIds.has(e.id) && e.role === 'user')
+        .map(e => e.id);
+        
+      devLog.action('Bulk change entry profiles', { entryIds: userSelectedIds, profileId });
+      bulkUpdateEntryProfile.mutate({ entryIds: userSelectedIds, profileId });
+    } else {
+      devLog.action('Change entry profile', { entryId: entry.id, profileId });
+      updateEntryProfile.mutate({ entryId: entry.id, profileId });
+    }
+  }, [entry.id, stagedEntryIds, entries, updateEntryProfile, bulkUpdateEntryProfile]);
   
   // Check if there are uncommitted changes
   const hasUncommittedChanges = useMemo(() => {
@@ -386,10 +399,12 @@ export function EntryBlock({ entry, isCompact = false }: EntryBlockProps) {
       >
         <div className="flex items-center gap-3">
           {/* Staging checkbox (only for user entries) */}
-          <Checkbox
-            checked={isStaged}
-            onCheckedChange={handleToggleStaging}
-          />
+          {isUser && (
+            <Checkbox
+              checked={isStaged}
+              onCheckedChange={handleToggleStaging}
+            />
+          )}
 
           {/* Collapse Indicator */}
           <div className="text-muted-foreground">

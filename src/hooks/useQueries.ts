@@ -78,7 +78,7 @@ export function useUpdateProfile() {
 
 export function useDeleteProfile() {
   const queryClient = useQueryClient();
-  const { removeProfile } = useAppStore();
+  const { removeProfile, activeStreamId, entries, setEntries } = useAppStore();
 
   return useMutation({
     mutationFn: ({
@@ -88,9 +88,36 @@ export function useDeleteProfile() {
       profileId: string;
       reassignToId?: string;
     }) => api.deleteProfile(profileId, reassignToId),
-    onSuccess: (_, { profileId }) => {
+    onSuccess: async (_, { profileId, reassignToId }) => {
+      // 1. Remove from profiles list immediately
       removeProfile(profileId);
-      queryClient.invalidateQueries({ queryKey: ["profiles"] });
+
+      // 2. Optimistically update all entries in the store
+      // We MUST clear the 'profile' object since it's now stale
+      const updatedEntries = entries.map((e) => {
+        if (e.profileId === profileId) {
+          return {
+            ...e,
+            profileId: reassignToId || undefined,
+            profile: undefined, // Clear the stale nested object!
+          };
+        }
+        return e;
+      });
+      setEntries(updatedEntries);
+
+      await queryClient.invalidateQueries({ queryKey: ["profiles"] });
+      // Invalidate stream metadata list
+      await queryClient.invalidateQueries({ queryKey: ["streams"] });
+      // Invalidate current stream details if active
+      if (activeStreamId) {
+        console.log("DEBUG: Refetching active stream", activeStreamId);
+        await queryClient.refetchQueries({
+          queryKey: ["stream", activeStreamId],
+        });
+      }
+      // Also invalidate generic stream key just in case
+      await queryClient.invalidateQueries({ queryKey: ["stream"] });
     },
   });
 }
@@ -115,10 +142,49 @@ export function useUpdateEntryProfile() {
       entryId: string;
       profileId: string | null;
     }) => api.updateEntryProfile(entryId, profileId),
-    onSuccess: (_, { entryId, profileId }) => {
-      updateEntry(entryId, { profileId: profileId || undefined });
+    onSuccess: async (_, { entryId, profileId }) => {
+      // Optimistically update the store:
+      // set profileId to the new ID, and CLEAR profile object (since it's now stale)
+      // This forces EntryBlock to use the ID lookup or wait for the refetch
+      updateEntry(entryId, {
+        profileId: profileId || undefined,
+        profile: undefined,
+      });
+
       if (activeStreamId) {
-        queryClient.invalidateQueries({ queryKey: ["stream", activeStreamId] });
+        await queryClient.refetchQueries({
+          queryKey: ["stream", activeStreamId],
+        });
+      }
+    },
+  });
+}
+
+export function useBulkUpdateEntryProfile() {
+  const queryClient = useQueryClient();
+  const { activeStreamId, updateEntry } = useAppStore();
+
+  return useMutation({
+    mutationFn: ({
+      entryIds,
+      profileId,
+    }: {
+      entryIds: string[];
+      profileId: string | null;
+    }) => api.bulkUpdateEntryProfile(entryIds, profileId),
+    onSuccess: async (_, { entryIds, profileId }) => {
+      // Optimistically update all entries in the store
+      entryIds.forEach((entryId) => {
+        updateEntry(entryId, {
+          profileId: profileId || undefined,
+          profile: undefined,
+        });
+      });
+
+      if (activeStreamId) {
+        await queryClient.refetchQueries({
+          queryKey: ["stream", activeStreamId],
+        });
       }
     },
   });

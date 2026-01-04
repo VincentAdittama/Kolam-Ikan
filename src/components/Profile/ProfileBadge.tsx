@@ -50,7 +50,7 @@ export function ProfileBadge({
         <div className={cn('flex items-center gap-2', className)}>
           <div
             className={cn(
-              'flex items-center justify-center rounded-full font-semibold text-white',
+              'flex items-center justify-center rounded-full font-semibold text-white shrink-0',
               sizeClasses[size],
               roleBorderStyles[profile.role as ProfileRole]
             )}

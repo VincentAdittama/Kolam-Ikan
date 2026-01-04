@@ -187,6 +187,10 @@ pub fn delete_profile(
     profile_id: String,
     reassign_to_id: Option<String>,
 ) -> Result<(), String> {
+    println!(
+        "DEBUG: delete_profile START - profile_id: '{}', reassign_to_id: {:?}",
+        profile_id, reassign_to_id
+    );
     let conn = db.conn.lock().map_err(|e| e.to_string())?;
 
     // Check if this is the default profile
@@ -211,9 +215,15 @@ pub fn delete_profile(
         )
         .map_err(|e| e.to_string())?;
 
+    println!(
+        "DEBUG: entry_count in DB for profile_id: {}: {}",
+        profile_id, entry_count
+    );
+
     if entry_count > 0 {
         match reassign_to_id {
             Some(new_profile_id) => {
+                println!("DEBUG: Reassigning to: '{}'", new_profile_id);
                 // Verify new profile exists
                 let exists: i32 = conn
                     .query_row(
@@ -224,6 +234,7 @@ pub fn delete_profile(
                     .map_err(|e| e.to_string())?;
 
                 if exists == 0 {
+                    println!("DEBUG: New profile '{}' NOT FOUND", new_profile_id);
                     return Err("Reassignment profile does not exist".to_string());
                 }
 
@@ -233,13 +244,23 @@ pub fn delete_profile(
 
                 // Reassign entries
                 let now = chrono::Utc::now().timestamp_millis();
-                conn.execute(
-                    "UPDATE entries SET profile_id = ?1, updated_at = ?2 WHERE profile_id = ?3",
-                    params![new_profile_id, now, profile_id],
-                )
-                .map_err(|e| e.to_string())?;
+                let rows_affected = conn
+                    .execute(
+                        "UPDATE entries SET profile_id = ?1, updated_at = ?2 WHERE profile_id = ?3",
+                        params![new_profile_id, now, profile_id],
+                    )
+                    .map_err(|e| e.to_string())?;
+                println!("DEBUG: entries reassigned rows_affected: {}", rows_affected);
+
+                if rows_affected == 0 && entry_count > 0 {
+                    return Err(format!(
+                        "Failed to reassign {} entries. The UPDATE query matched 0 rows (profile_id: '{}').",
+                        entry_count, profile_id
+                    ));
+                }
             }
             None => {
+                println!("DEBUG: ERROR - NO reassign_to_id provided despite entry_count > 0");
                 return Err(format!(
                     "Cannot delete profile with {} associated entries. Reassign entries first.",
                     entry_count
@@ -248,9 +269,11 @@ pub fn delete_profile(
         }
     }
 
+    println!("DEBUG: Deleting profile '{}'", profile_id);
     conn.execute("DELETE FROM profiles WHERE id = ?1", params![profile_id])
         .map_err(|e| e.to_string())?;
 
+    println!("DEBUG: delete_profile SUCCESS");
     Ok(())
 }
 
@@ -452,14 +475,27 @@ pub fn get_stream_details(
         )
         .map_err(|e| e.to_string())?;
 
-    // Get entries
+    // Get entries with full profile data
     let mut stmt = conn
         .prepare(
-            "SELECT id, stream_id, profile_id, role, content, sequence_id, version_head, is_staged, 
-                    parent_context_ids, ai_metadata, created_at, updated_at 
-             FROM entries 
-             WHERE stream_id = ?1 
-             ORDER BY sequence_id ASC",
+            "SELECT 
+                e.id, 
+                e.stream_id, 
+                e.profile_id, 
+                e.role, 
+                e.content, 
+                e.sequence_id, 
+                e.version_head, 
+                e.is_staged, 
+                e.parent_context_ids, 
+                e.ai_metadata, 
+                e.created_at, 
+                e.updated_at,
+                p.id, p.name, p.role, p.avatar_url, p.color, p.initials, p.bio, p.is_default, p.created_at, p.updated_at
+             FROM entries e
+             LEFT JOIN profiles p ON e.profile_id = p.id
+             WHERE e.stream_id = ?1 
+             ORDER BY e.sequence_id ASC",
         )
         .map_err(|e| e.to_string())?;
 
@@ -474,6 +510,24 @@ pub fn get_stream_details(
             let ai_metadata: Option<AiMetadata> =
                 ai_metadata_str.and_then(|s| serde_json::from_str(&s).ok());
 
+            // Construct profile if joined successfully
+            let profile = if let Ok(id) = row.get::<_, String>(12) {
+                Some(Profile {
+                    id,
+                    name: row.get(13)?,
+                    role: row.get(14)?,
+                    avatar_url: row.get(15)?,
+                    color: row.get(16)?,
+                    initials: row.get(17)?,
+                    bio: row.get(18)?,
+                    is_default: row.get::<_, i32>(19)? != 0,
+                    created_at: row.get(20)?,
+                    updated_at: row.get(21)?,
+                })
+            } else {
+                None
+            };
+
             Ok(Entry {
                 id: row.get(0)?,
                 stream_id: row.get(1)?,
@@ -487,7 +541,7 @@ pub fn get_stream_details(
                 ai_metadata,
                 created_at: row.get(10)?,
                 updated_at: row.get(11)?,
-                profile: None,
+                profile,
             })
         })
         .map_err(|e| e.to_string())?
@@ -670,6 +724,30 @@ pub fn update_entry_profile(
         params![profile_id, now, entry_id],
     )
     .map_err(|e| e.to_string())?;
+
+    Ok(())
+}
+
+#[tauri::command]
+pub fn bulk_update_entry_profile(
+    db: State<Database>,
+    entry_ids: Vec<String>,
+    profile_id: Option<String>,
+) -> Result<(), String> {
+    let mut conn = db.conn.lock().map_err(|e| e.to_string())?;
+    let now = chrono::Utc::now().timestamp_millis();
+
+    let tx = conn.transaction().map_err(|e| e.to_string())?;
+
+    for entry_id in entry_ids {
+        tx.execute(
+            "UPDATE entries SET profile_id = ?1, updated_at = ?2 WHERE id = ?3",
+            params![profile_id, now, entry_id],
+        )
+        .map_err(|e| e.to_string())?;
+    }
+
+    tx.commit().map_err(|e| e.to_string())?;
 
     Ok(())
 }

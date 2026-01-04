@@ -57,6 +57,7 @@ pub fn run() {
             commands::create_entry,
             commands::update_entry_content,
             commands::update_entry_profile,
+            commands::bulk_update_entry_profile,
             commands::toggle_entry_staging,
             commands::delete_entry,
             commands::get_staged_entries,

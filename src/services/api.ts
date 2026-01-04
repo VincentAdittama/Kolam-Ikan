@@ -134,6 +134,16 @@ export async function updateEntryProfile(
   return invokeWithLogging("update_entry_profile", { entryId, profileId });
 }
 
+export async function bulkUpdateEntryProfile(
+  entryIds: string[],
+  profileId: string | null
+): Promise<void> {
+  return invokeWithLogging("bulk_update_entry_profile", {
+    entryIds,
+    profileId,
+  });
+}
+
 export async function toggleEntryStaging(
   entryId: string,
   isStaged: boolean
@@ -161,7 +171,10 @@ export async function commitEntryVersion(
   entryId: string,
   commitMessage?: string
 ): Promise<EntryVersion> {
-  return invokeWithLogging("commit_entry_version", { entryId, commitMessage });
+  return invokeWithLogging("commit_entry_version", {
+    entryId,
+    commitMessage,
+  });
 }
 
 export async function getEntryVersions(
@@ -180,7 +193,10 @@ export async function getVersionByNumber(
   entryId: string,
   versionNumber: number
 ): Promise<EntryVersion | null> {
-  return invokeWithLogging("get_version_by_number", { entryId, versionNumber });
+  return invokeWithLogging("get_version_by_number", {
+    entryId,
+    versionNumber,
+  });
 }
 
 export async function revertToVersion(

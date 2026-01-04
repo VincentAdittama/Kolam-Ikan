@@ -205,7 +205,7 @@ export function ProfileFormDialog({
           {/* Preview */}
           <div className="flex items-center gap-3 p-3 rounded-lg bg-muted">
             <div
-              className="flex h-10 w-10 items-center justify-center rounded-full text-white font-semibold"
+              className="flex h-10 w-10 items-center justify-center rounded-full text-white font-semibold shrink-0"
               style={{ backgroundColor: color }}
             >
               {initials || generateInitials(name) || '??'}

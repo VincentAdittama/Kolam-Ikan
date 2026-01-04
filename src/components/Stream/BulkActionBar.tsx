@@ -10,7 +10,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { ProfileBadge } from '@/components/Profile';
 import { useAppStore } from '@/store/appStore';
-import { useUpdateEntryProfile, useClearAllStaging } from '@/hooks/useQueries';
+import { useClearAllStaging, useBulkUpdateEntryProfile } from '@/hooks/useQueries';
 import { devLog } from '@/lib/devLogger';
 import type { Profile } from '@/types';
 
@@ -21,7 +21,7 @@ export function BulkActionBar() {
     profiles,
   } = useAppStore();
 
-  const updateEntryProfile = useUpdateEntryProfile();
+  const bulkUpdateEntryProfile = useBulkUpdateEntryProfile();
   const clearAllStaging = useClearAllStaging();
 
   const stagedEntries = useMemo(() => {
@@ -38,16 +38,15 @@ export function BulkActionBar() {
   if (stagedEntryIds.size === 0) return null;
 
   const handleBulkProfileChange = (profileId: string | null) => {
+    const userSelectedIds = userStagedEntries.map(e => e.id);
     devLog.action('Bulk change entry profile', { 
-        count: userStagedEntries.length, 
+        count: userSelectedIds.length, 
         profileId,
         ignoredAiCount: aiStagedCount 
     });
     
-    // Update each user entry's profile
-    userStagedEntries.forEach(entry => {
-      updateEntryProfile.mutate({ entryId: entry.id, profileId });
-    });
+    // Update all user entries in one go
+    bulkUpdateEntryProfile.mutate({ entryIds: userSelectedIds, profileId });
   };
 
   return (

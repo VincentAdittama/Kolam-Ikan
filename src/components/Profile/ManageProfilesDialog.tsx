@@ -45,16 +45,17 @@ export function ManageProfilesDialog({
 
   const [profileToDelete, setProfileToDelete] = useState<string | null>(null);
   const [entriesCount, setEntriesCount] = useState<number>(0);
-  const [reassignProfileId, setReassignProfileId] = useState<string>('');
+  const [reassignProfileId, setReassignProfileId] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const [checkingCount, setCheckingCount] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   // Set default reassign profile to system default if available
   useEffect(() => {
-    if (defaultProfile && !reassignProfileId) {
+    if (defaultProfile && !reassignProfileId && !profileToDelete) {
        setReassignProfileId(defaultProfile.id);
     }
-  }, [defaultProfile, reassignProfileId]);
+  }, [defaultProfile, reassignProfileId, profileToDelete]);
 
   const handleCreateClick = () => {
     setEditingProfile(null);
@@ -68,6 +69,7 @@ export function ManageProfilesDialog({
 
   const handleDeleteClick = async (profileId: string) => {
     setCheckingCount(true);
+    setError(null);
     try {
       const count = await api.getProfileEntryCount(profileId);
       setEntriesCount(count);
@@ -76,10 +78,14 @@ export function ManageProfilesDialog({
       const otherProfile = profiles.find(p => p.id !== profileId && p.isDefault) 
                         || profiles.find(p => p.id !== profileId);
       if (otherProfile) {
+        console.log("DEBUG: Setting reassignProfileId to", otherProfile.id);
         setReassignProfileId(otherProfile.id);
+      } else {
+        setReassignProfileId(null);
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error("Failed to check profile entries:", error);
+      setError(error.message || "Failed to check associated entries.");
     } finally {
       setCheckingCount(false);
     }
@@ -89,15 +95,20 @@ export function ManageProfilesDialog({
     if (!profileToDelete) return;
     
     setIsDeleting(true);
+    console.log("DEBUG: confirmDelete payload " + JSON.stringify({
+      profileId: profileToDelete,
+      entriesCount,
+      reassignProfileId
+    }));
     try {
       await deleteProfile.mutateAsync({
         profileId: profileToDelete,
-        reassignToId: entriesCount > 0 ? reassignProfileId : undefined
+        reassignToId: entriesCount > 0 && reassignProfileId ? reassignProfileId : undefined
       });
       setProfileToDelete(null);
-    } catch (error) {
+    } catch (error: any) {
       console.error("Failed to delete profile:", error);
-      // Ideally show an error message to the user here
+      setError(error.message || "Failed to delete profile. Please try again.");
     } finally {
       setIsDeleting(false);
     }
@@ -200,6 +211,11 @@ export function ManageProfilesDialog({
           </DialogHeader>
 
           <div className="py-4 space-y-4">
+             {error && (
+               <div className="p-3 bg-destructive/10 border border-destructive/20 text-destructive text-sm rounded-md">
+                 {error}
+               </div>
+             )}
              {entriesCount > 0 ? (
                <div className="p-4 bg-muted/50 rounded-lg space-y-3">
                  <div className="text-sm font-medium">
@@ -211,7 +227,10 @@ export function ManageProfilesDialog({
                  
                  <div className="space-y-1.5 pt-2">
                    <Label>Reassign to</Label>
-                   <Select value={reassignProfileId} onValueChange={setReassignProfileId}>
+                   <Select 
+                     value={reassignProfileId || undefined} 
+                     onValueChange={(val) => setReassignProfileId(val)}
+                   >
                       <SelectTrigger>
                         <SelectValue placeholder="Select profile..." />
                       </SelectTrigger>
