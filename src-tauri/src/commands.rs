@@ -238,11 +238,17 @@ pub fn create_entry(db: State<Database>, input: CreateEntryInput) -> Result<Entr
         .map(|m| serde_json::to_string(m))
         .transpose()
         .map_err(|e| e.to_string())?;
+    
+    // Serialize parent_context_ids if provided
+    let parent_context_ids_str = input.parent_context_ids.as_ref()
+        .map(|ids| serde_json::to_string(ids))
+        .transpose()
+        .map_err(|e| e.to_string())?;
 
     conn.execute(
-        "INSERT INTO entries (id, stream_id, role, content, sequence_id, version_head, is_staged, ai_metadata, created_at, updated_at) 
-         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)",
-        params![id, input.stream_id, input.role, content_str, sequence_id, 0, 0, ai_metadata_str, now, now],
+        "INSERT INTO entries (id, stream_id, role, content, sequence_id, version_head, is_staged, parent_context_ids, ai_metadata, created_at, updated_at) 
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)",
+        params![id, input.stream_id, input.role, content_str, sequence_id, 0, 0, parent_context_ids_str, ai_metadata_str, now, now],
     )
     .map_err(|e| e.to_string())?;
 
@@ -261,7 +267,7 @@ pub fn create_entry(db: State<Database>, input: CreateEntryInput) -> Result<Entr
         sequence_id,
         version_head: 0,
         is_staged: false,
-        parent_context_ids: None,
+        parent_context_ids: input.parent_context_ids,
         ai_metadata: input.ai_metadata,
         created_at: now,
         updated_at: now,

@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useAppStore } from '@/store/appStore';
 import { devLog } from '@/lib/devLogger';
+import { useStreamRefetch } from '@/hooks/useStreamRefetch';
 import { EntryBlock } from '@/components/Stream/EntryBlock';
 import * as api from '@/services/api';
 
@@ -15,6 +16,8 @@ export function MainView() {
     isLoadingEntries,
     addEntry,
   } = useAppStore();
+
+  const { refetchStreams } = useStreamRefetch();
 
   const handleCreateEntry = async () => {
     if (!activeStreamId) return;
@@ -43,6 +46,8 @@ export function MainView() {
 
       devLog.apiSuccess('create_entry', { entryId: newEntry.id, sequenceId: newEntry.sequenceId });
       addEntry(newEntry);
+      // Refetch streams to update entry counts
+      refetchStreams();
     } catch (error) {
       devLog.apiError('create_entry', error);
       throw error;

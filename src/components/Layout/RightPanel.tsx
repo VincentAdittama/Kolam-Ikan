@@ -30,6 +30,7 @@ import {
 import { cn, estimateTokens, formatTokenCount, getTokenStatus } from '@/lib/utils';
 import { devLog } from '@/lib/devLogger';
 import { useAppStore } from '@/store/appStore';
+import { useStreamRefetch } from '@/hooks/useStreamRefetch';
 import { MODEL_CONFIGS, type DirectiveType, type ModelType, type AiMetadata, parseAIModelString } from '@/types';
 import { generateBridgePrompt, parseAIResponse, contentToProseMirror } from '@/services/bridge';
 import { SidebarBranchGraph } from '@/components/Branch/SidebarBranchGraph';
@@ -60,6 +61,7 @@ export function RightPanel() {
     pendingBlock,
   } = useAppStore();
 
+  const { refetchStreams } = useStreamRefetch();
   const [isExporting, setIsExporting] = React.useState(false);
   const [isImporting, setIsImporting] = React.useState(false);
   const [exportError, setExportError] = React.useState<string | null>(null);
@@ -215,20 +217,25 @@ export function RightPanel() {
         directive: aiMetadata.directive,
       });
 
-      // Create AI entry with metadata
+      // Create AI entry with metadata and parent context IDs (staged blocks)
       devLog.createEntry(activeStreamId, 'ai');
-      devLog.apiCall('POST', 'create_entry', { streamId: activeStreamId, role: 'ai', hasMetadata: !!aiMetadata });
+      devLog.apiCall('POST', 'create_entry', { streamId: activeStreamId, role: 'ai', hasMetadata: !!aiMetadata, parentContextIds: pendingBlock.stagedContextIds });
       const newEntry = await api.createEntry({
         streamId: activeStreamId,
         role: 'ai',
         content: prosemirrorContent,
         aiMetadata,
+        // Pass the staged entry IDs as parent context - this enables synapse visualization
+        parentContextIds: pendingBlock.stagedContextIds,
       });
 
       devLog.apiSuccess('create_entry', { entryId: newEntry.id, sequenceId: newEntry.sequenceId });
 
       // Add to store
       addEntry(newEntry);
+
+      // Refetch streams to update entry counts
+      refetchStreams();
 
       // Delete pending block
       devLog.apiCall('DELETE', 'delete_pending_block', { pendingBlockId: pendingBlock.id });

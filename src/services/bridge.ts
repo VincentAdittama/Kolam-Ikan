@@ -90,10 +90,15 @@ export async function generateBridgePrompt(
   // Calculate token estimate
   const tokenEstimate = estimateTokens(prompt);
 
+  // Store entry IDs with their current version numbers
+  // Format: "entryId:versionNumber" - this allows synapse visualization
+  // to point to the correct version that was staged
+  const stagedEntryIds = entries.map((e) => `${e.id}:${e.versionHead}`);
+
   return {
     bridgeKey,
     prompt,
-    stagedEntryIds: entries.map((e) => e.id),
+    stagedEntryIds,
     directive,
     timestamp: Date.now(),
     tokenEstimate,

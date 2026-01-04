@@ -71,12 +71,14 @@ export function Sidebar() {
         .then((data) => {
           setCurrentStream(data.stream);
           setEntries(data.entries);
+          // Refetch stream list to update entry counts
+          refetchStreams();
         })
         .finally(() => {
           setLoadingEntries(false);
         });
     }
-  }, [activeStreamId, setCurrentStream, setEntries, setLoadingEntries]);
+  }, [activeStreamId, setCurrentStream, setEntries, setLoadingEntries, refetchStreams]);
 
   const handleCreateStream = async () => {
     if (!newStreamTitle.trim()) return;
@@ -106,17 +108,17 @@ export function Sidebar() {
     try {
       await api.deleteStream(streamId);
       devLog.apiSuccess('delete_stream');
+      
+      if (activeStreamId === streamId) {
+        setActiveStreamId(null);
+        setCurrentStream(null);
+        setEntries([]);
+      }
+      await refetchStreams();
     } catch (error) {
       devLog.apiError('delete_stream', error);
       throw error;
     }
-
-    if (activeStreamId === streamId) {
-      setActiveStreamId(null);
-      setCurrentStream(null);
-      setEntries([]);
-    }
-    refetchStreams();
   };
 
   const handlePinStream = async (streamId: string, currentPinned: boolean) => {

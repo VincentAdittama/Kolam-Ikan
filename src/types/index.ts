@@ -2,13 +2,20 @@
 // KOLAM IKAN - TYPE DEFINITIONS
 // ============================================================
 
-import type { JSONContent } from '@tiptap/react';
+import type { JSONContent } from "@tiptap/react";
 
 // ============================================================
 // AI PROVIDER TYPES (declared early for use in Entry)
 // ============================================================
 
-export type AIProvider = 'openai' | 'anthropic' | 'google' | 'meta' | 'mistral' | 'xai' | 'other';
+export type AIProvider =
+  | "openai"
+  | "anthropic"
+  | "google"
+  | "meta"
+  | "mistral"
+  | "xai"
+  | "other";
 
 // ============================================================
 // STREAM TYPES
@@ -46,14 +53,14 @@ export interface CreateStreamInput {
 // ENTRY TYPES
 // ============================================================
 
-export type EntryRole = 'user' | 'ai';
+export type EntryRole = "user" | "ai";
 
 export interface AiMetadata {
-  model: string;           // e.g., "Claude 3.5 Sonnet"
-  provider: AIProvider;    // e.g., "anthropic"
+  model: string; // e.g., "Claude 3.5 Sonnet"
+  provider: AIProvider; // e.g., "anthropic"
   directive: DirectiveType; // which directive generated this
-  bridgeKey: string;       // link back to the prompt
-  summary?: string;        // AI's summary of what it did
+  bridgeKey: string; // link back to the prompt
+  summary?: string; // AI's summary of what it did
 }
 
 export interface Entry {
@@ -81,6 +88,8 @@ export interface CreateEntryInput {
   role: EntryRole;
   content: JSONContent;
   aiMetadata?: AiMetadata;
+  /** IDs of entries that were staged/used as context for this entry (for AI responses) */
+  parentContextIds?: string[];
 }
 
 export interface UpdateEntryContentInput {
@@ -138,7 +147,7 @@ export interface CreateSpotlightInput {
 // DIRECTIVE TYPES
 // ============================================================
 
-export type DirectiveType = 'DUMP' | 'CRITIQUE' | 'GENERATE';
+export type DirectiveType = "DUMP" | "CRITIQUE" | "GENERATE";
 
 export interface DirectiveConfig {
   type: DirectiveType;
@@ -150,10 +159,10 @@ export interface DirectiveConfig {
 
 export const DIRECTIVES: Record<DirectiveType, DirectiveConfig> = {
   DUMP: {
-    type: 'DUMP',
-    label: 'Dump',
-    description: 'Refactor & Restructure',
-    icon: 'RefreshCw',
+    type: "DUMP",
+    label: "Dump",
+    description: "Refactor & Restructure",
+    icon: "RefreshCw",
     template: `<directive>
 You are a thinking partner helping to refactor and restructure notes.
 
@@ -190,10 +199,10 @@ This structured format is REQUIRED for the application to process your response 
 </output_format>`,
   },
   CRITIQUE: {
-    type: 'CRITIQUE',
-    label: 'Critique',
-    description: 'Find Gaps & Issues',
-    icon: 'Search',
+    type: "CRITIQUE",
+    label: "Critique",
+    description: "Find Gaps & Issues",
+    icon: "Search",
     template: `<directive>
 You are a critical thinking partner analyzing these notes.
 
@@ -231,10 +240,10 @@ This structured format is REQUIRED for the application to process your response 
 </output_format>`,
   },
   GENERATE: {
-    type: 'GENERATE',
-    label: 'Generate',
-    description: 'Expand & Elaborate',
-    icon: 'Sparkles',
+    type: "GENERATE",
+    label: "Generate",
+    description: "Expand & Elaborate",
+    icon: "Sparkles",
     template: `<directive>
 You are a creative thinking partner helping to expand these notes.
 
@@ -316,64 +325,73 @@ export interface AIModelInfo {
  */
 export function parseAIModelString(modelString: string): AIModelInfo {
   const lower = modelString.toLowerCase();
-  
+
   // Anthropic models
-  if (lower.includes('claude')) {
+  if (lower.includes("claude")) {
     return {
-      provider: 'anthropic',
-      modelName: lower.replace(/\s+/g, '-'),
+      provider: "anthropic",
+      modelName: lower.replace(/\s+/g, "-"),
       displayName: modelString,
     };
   }
-  
+
   // OpenAI models
-  if (lower.includes('gpt') || lower.includes('openai') || lower.includes('o1') || lower.includes('o3')) {
+  if (
+    lower.includes("gpt") ||
+    lower.includes("openai") ||
+    lower.includes("o1") ||
+    lower.includes("o3")
+  ) {
     return {
-      provider: 'openai',
-      modelName: lower.replace(/\s+/g, '-'),
+      provider: "openai",
+      modelName: lower.replace(/\s+/g, "-"),
       displayName: modelString,
     };
   }
-  
+
   // Google models
-  if (lower.includes('gemini') || lower.includes('palm') || lower.includes('bard')) {
+  if (
+    lower.includes("gemini") ||
+    lower.includes("palm") ||
+    lower.includes("bard")
+  ) {
     return {
-      provider: 'google',
-      modelName: lower.replace(/\s+/g, '-'),
+      provider: "google",
+      modelName: lower.replace(/\s+/g, "-"),
       displayName: modelString,
     };
   }
-  
+
   // Meta models
-  if (lower.includes('llama') || lower.includes('meta')) {
+  if (lower.includes("llama") || lower.includes("meta")) {
     return {
-      provider: 'meta',
-      modelName: lower.replace(/\s+/g, '-'),
+      provider: "meta",
+      modelName: lower.replace(/\s+/g, "-"),
       displayName: modelString,
     };
   }
-  
+
   // Mistral models
-  if (lower.includes('mistral') || lower.includes('mixtral')) {
+  if (lower.includes("mistral") || lower.includes("mixtral")) {
     return {
-      provider: 'mistral',
-      modelName: lower.replace(/\s+/g, '-'),
+      provider: "mistral",
+      modelName: lower.replace(/\s+/g, "-"),
       displayName: modelString,
     };
   }
-  
+
   // xAI models (Grok)
-  if (lower.includes('grok') || lower.includes('xai')) {
+  if (lower.includes("grok") || lower.includes("xai")) {
     return {
-      provider: 'xai',
-      modelName: lower.replace(/\s+/g, '-'),
+      provider: "xai",
+      modelName: lower.replace(/\s+/g, "-"),
       displayName: modelString,
     };
   }
-  
+
   return {
-    provider: 'other',
-    modelName: lower.replace(/\s+/g, '-'),
+    provider: "other",
+    modelName: lower.replace(/\s+/g, "-"),
     displayName: modelString,
   };
 }
@@ -383,13 +401,13 @@ export function parseAIModelString(modelString: string): AIModelInfo {
  */
 export function getAIProviderIcon(provider: AIProvider): string {
   const icons: Record<AIProvider, string> = {
-    anthropic: '/icons/ai/anthropic.svg',
-    openai: '/icons/ai/openai.svg',
-    google: '/icons/ai/google.svg',
-    meta: '/icons/ai/meta.svg',
-    mistral: '/icons/ai/mistral.svg',
-    xai: '/icons/ai/grok.svg',
-    other: '/icons/ai/generic.svg',
+    anthropic: "/icons/ai/anthropic.svg",
+    openai: "/icons/ai/openai.svg",
+    google: "/icons/ai/google.svg",
+    meta: "/icons/ai/meta.svg",
+    mistral: "/icons/ai/mistral.svg",
+    xai: "/icons/ai/grok.svg",
+    other: "/icons/ai/generic.svg",
   };
   return icons[provider];
 }
@@ -399,13 +417,13 @@ export function getAIProviderIcon(provider: AIProvider): string {
  */
 export function getAIProviderColor(provider: AIProvider): string {
   const colors: Record<AIProvider, string> = {
-    anthropic: '#D97757',  // Anthropic orange
-    openai: '#10A37F',     // OpenAI green
-    google: '#4285F4',     // Google blue
-    meta: '#0668E1',       // Meta blue
-    mistral: '#F7931A',    // Mistral orange
-    xai: '#000000',        // xAI/Grok black
-    other: '#6B7280',      // Gray
+    anthropic: "#D97757", // Anthropic orange/terra cotta
+    openai: "#10A37F", // OpenAI/ChatGPT teal green
+    google: "#4285F4", // Google blue
+    meta: "#0668E1", // Meta blue
+    mistral: "#F2A900", // Mistral orange/gold
+    xai: "#F3F4F6", // xAI/Grok light gray (for contrast with black icons)
+    other: "#9CA3AF", // Gray
   };
   return colors[provider];
 }
@@ -414,7 +432,11 @@ export function getAIProviderColor(provider: AIProvider): string {
 // TOKEN COUNTER TYPES
 // ============================================================
 
-export type ModelType = 'gpt4-turbo' | 'claude-sonnet' | 'gemini-pro' | 'default';
+export type ModelType =
+  | "gpt4-turbo"
+  | "claude-sonnet"
+  | "gemini-pro"
+  | "default";
 
 export interface ModelConfig {
   id: ModelType;
@@ -424,27 +446,27 @@ export interface ModelConfig {
 }
 
 export const MODEL_CONFIGS: Record<ModelType, ModelConfig> = {
-  'gpt4-turbo': {
-    id: 'gpt4-turbo',
-    name: 'GPT-4 Turbo',
+  "gpt4-turbo": {
+    id: "gpt4-turbo",
+    name: "GPT-4 Turbo",
     tokenLimit: 128000,
     warningThreshold: 100000,
   },
-  'claude-sonnet': {
-    id: 'claude-sonnet',
-    name: 'Claude Sonnet',
+  "claude-sonnet": {
+    id: "claude-sonnet",
+    name: "Claude Sonnet",
     tokenLimit: 200000,
     warningThreshold: 180000,
   },
-  'gemini-pro': {
-    id: 'gemini-pro',
-    name: 'Gemini Pro',
+  "gemini-pro": {
+    id: "gemini-pro",
+    name: "Gemini Pro",
     tokenLimit: 128000,
     warningThreshold: 100000,
   },
   default: {
-    id: 'default',
-    name: 'Default',
+    id: "default",
+    name: "Default",
     tokenLimit: 4000,
     warningThreshold: 3200,
   },
@@ -454,7 +476,7 @@ export interface TokenUsage {
   used: number;
   limit: number;
   percentage: number;
-  status: 'normal' | 'warning' | 'critical' | 'exceeded';
+  status: "normal" | "warning" | "critical" | "exceeded";
 }
 
 // ============================================================
@@ -467,7 +489,7 @@ export interface AppState {
   selectedModel: ModelType;
   sidebarVisible: boolean;
   rightPanelVisible: boolean;
-  theme: 'light' | 'dark' | 'system';
+  theme: "light" | "dark" | "system";
 }
 
 export interface SearchResult {
@@ -489,11 +511,11 @@ export interface AppError {
   details?: string;
 }
 
-export type ClipboardErrorType = 
-  | 'EMPTY_CLIPBOARD'
-  | 'INVALID_CONTENT'
-  | 'BRIDGE_KEY_MISMATCH'
-  | 'BRIDGE_KEY_MISSING';
+export type ClipboardErrorType =
+  | "EMPTY_CLIPBOARD"
+  | "INVALID_CONTENT"
+  | "BRIDGE_KEY_MISMATCH"
+  | "BRIDGE_KEY_MISSING";
 
 export interface ClipboardError extends AppError {
   type: ClipboardErrorType;
@@ -524,26 +546,59 @@ export interface BranchNode {
   parentId: string | null;
   children: string[];
   depth: number;
-  branchPath: number[];  // e.g., [0, 1, 0] means main -> first branch -> second sub-branch
+  branchPath: number[]; // e.g., [0, 1, 0] means main -> first branch -> second sub-branch
   createdAt: number;
   versionNumber: number;
   isHead: boolean;
   isStaged: boolean;
+  // Context dependency tracking
+  parentContextIds?: string[];
   // Physics properties (populated by D3)
   x?: number;
   y?: number;
   vx?: number;
   vy?: number;
-  fx?: number | null;  // Fixed position
+  fx?: number | null; // Fixed position
   fy?: number | null;
+
+  // === VERSION-AWARE PROPERTIES (for detailed view) ===
+  /** If this node is a version sub-node, this is the version number it represents */
+  representedVersion?: number;
+  /** True if this is a version sub-node (not the main block node) */
+  isVersionNode?: boolean;
+  /** The parent block's entry ID (for version nodes, this links back to the block) */
+  blockEntryId?: string;
+  /** If this block was created from a specific version of a parent, track it */
+  parentVersionNumber?: number;
+  /** Group ID for visual grouping of version nodes belonging to same block */
+  versionGroupId?: string;
+  /** Position within version group (0 = oldest, n = newest/current) */
+  versionGroupIndex?: number;
+  /** Total versions in this block's group */
+  versionGroupTotal?: number;
+  /** True if this version node is the "current" (HEAD) version of the block */
+  isCurrentVersion?: boolean;
 }
 
+/** Extended link type for version-aware connections */
 export interface BranchLink {
   id: string;
   source: string;
   target: string;
-  isBranch: boolean;  // true if this creates a new branch, false if linear
+  isBranch: boolean; // true if this creates a new branch, false if linear
   strength: number;
+  // === VERSION-AWARE PROPERTIES ===
+  /** True if this link connects version nodes within same block */
+  isVersionLink?: boolean;
+  /** True if this link connects to a specific version (not just the block) */
+  isVersionConnection?: boolean;
+  /** The version number this link originates from (for version connections) */
+  sourceVersionNumber?: number;
+  /** Visual style hint */
+  linkStyle?: "solid" | "dashed" | "dotted";
+  // === CONTEXT DEPENDENCY (SYNAPSE) PROPERTIES ===
+  /** True if this is a context dependency link (synapse) - shows which blocks were staged to create an AI response */
+  isContextLink?: boolean;
 }
 
 export interface BranchTree {
@@ -552,6 +607,17 @@ export interface BranchTree {
   root: string | null;
   maxDepth: number;
   branchCount: number;
+  // === VERSION-AWARE PROPERTIES ===
+  /** Map of entry ID to version group boundaries for visual grouping */
+  versionGroups?: Map<
+    string,
+    {
+      nodeIds: string[];
+      bounds?: { x: number; y: number; width: number; height: number };
+    }
+  >;
+  /** True if this tree was built in detailed (version-expanded) mode */
+  isDetailedView?: boolean;
 }
 
 export interface BranchVisualizationConfig {
@@ -564,4 +630,9 @@ export interface BranchVisualizationConfig {
   linkDistance: number;
   chargeStrength: number;
   collisionRadius: number;
+  // === VERSION-AWARE PROPERTIES ===
+  /** Show detailed view with version sub-nodes */
+  detailedView?: boolean;
+  /** Show version connections (which version created which child) */
+  showVersionConnections?: boolean;
 }

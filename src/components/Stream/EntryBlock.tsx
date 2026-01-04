@@ -43,6 +43,7 @@ import { cn, formatEntryTime, debounce } from '@/lib/utils';
 import { devLog } from '@/lib/devLogger';
 import { useAppStore } from '@/store/appStore';
 import { useLatestVersion } from '@/hooks/useQueries';
+import { useStreamRefetch } from '@/hooks/useStreamRefetch';
 import type { Entry } from '@/types';
 import type { JSONContent } from '@tiptap/react';
 import { getAIProviderIcon, getAIProviderColor } from '@/types';
@@ -84,6 +85,7 @@ export function EntryBlock({ entry }: EntryBlockProps) {
     removeEntry,
   } = useAppStore();
 
+  const { refetchStreams } = useStreamRefetch();
   const [showVersionHistory, setShowVersionHistory] = useState(false);
   const [showCommitDialog, setShowCommitDialog] = useState(false);
   
@@ -183,6 +185,8 @@ export function EntryBlock({ entry }: EntryBlockProps) {
       await api.deleteEntry(entry.id);
       devLog.apiSuccess('delete_entry', { entryId: entry.id });
       removeEntry(entry.id);
+      // Refetch streams to update entry counts
+      refetchStreams();
     } catch (error) {
       devLog.apiError('delete_entry', error);
       throw error;
@@ -243,18 +247,18 @@ export function EntryBlock({ entry }: EntryBlockProps) {
             <Tooltip>
               <TooltipTrigger asChild>
                 <div 
-                  className="flex h-8 w-8 items-center justify-center rounded-full bg-secondary overflow-hidden"
+                  className="flex h-8 w-8 items-center justify-center rounded-full overflow-hidden shadow-sm"
                   style={entry.aiMetadata ? { 
-                    backgroundColor: `${getAIProviderColor(entry.aiMetadata.provider)}15`,
-                    border: `1.5px solid ${getAIProviderColor(entry.aiMetadata.provider)}40`
+                    backgroundColor: getAIProviderColor(entry.aiMetadata.provider),
+                    border: `1px solid rgba(0,0,0,0.1)`
                   } : undefined}
                 >
                   {entry.aiMetadata ? (
                     <img 
                       src={getAIProviderIcon(entry.aiMetadata.provider)} 
                       alt={entry.aiMetadata.provider}
-                      className="h-4 w-4"
-                      style={{ filter: 'none' }}
+                      className="h-5 w-5 object-contain"
+                      style={{ filter: 'brightness(0)' }} // Ensure it's black for consistent look on brand colors
                     />
                   ) : (
                     <Bot className="h-4 w-4" />
@@ -290,16 +294,18 @@ export function EntryBlock({ entry }: EntryBlockProps) {
           {/* AI Model badge (for AI entries with metadata) */}
           {!isUser && entry.aiMetadata && (
             <span 
-              className="inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-xs font-medium"
+              className="inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider shadow-sm"
               style={{ 
-                backgroundColor: `${getAIProviderColor(entry.aiMetadata.provider)}15`,
-                color: getAIProviderColor(entry.aiMetadata.provider),
+                backgroundColor: getAIProviderColor(entry.aiMetadata.provider),
+                color: entry.aiMetadata.provider === 'xai' || entry.aiMetadata.provider === 'other' ? '#000' : '#fff',
+                border: '1px solid rgba(0,0,0,0.05)'
               }}
             >
               <img 
                 src={getAIProviderIcon(entry.aiMetadata.provider)} 
                 alt={entry.aiMetadata.provider}
                 className="h-3 w-3"
+                style={{ filter: entry.aiMetadata.provider === 'xai' || entry.aiMetadata.provider === 'other' ? 'none' : 'brightness(0)' }}
               />
               {entry.aiMetadata.model}
             </span>
