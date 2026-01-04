@@ -44,6 +44,10 @@ export function Sidebar() {
 
   const [isNewStreamOpen, setIsNewStreamOpen] = React.useState(false);
   const [newStreamTitle, setNewStreamTitle] = React.useState('');
+  
+  const [isRenameOpen, setIsRenameOpen] = React.useState(false);
+  const [editingStreamId, setEditingStreamId] = React.useState<string | null>(null);
+  const [renameTitle, setRenameTitle] = React.useState('');
 
   // Fetch streams
   const { data: streamsData, refetch: refetchStreams } = useQuery({
@@ -136,6 +140,32 @@ export function Sidebar() {
     refetchStreams();
   };
 
+  const handleRenameStream = async () => {
+    if (!editingStreamId || !renameTitle.trim()) return;
+
+    devLog.apiCall('PATCH', 'update_stream', { streamId: editingStreamId, title: renameTitle.trim() });
+
+    try {
+      await api.updateStream(editingStreamId, { title: renameTitle.trim() });
+      devLog.apiSuccess('update_stream');
+      
+      // Update local state if it's the current stream
+      if (activeStreamId === editingStreamId) {
+        await api.getStreamDetails(activeStreamId).then((data) => {
+          setCurrentStream(data.stream);
+        });
+      }
+      
+      setIsRenameOpen(false);
+      setEditingStreamId(null);
+      setRenameTitle('');
+      refetchStreams();
+    } catch (error) {
+      devLog.apiError('update_stream', error);
+      throw error;
+    }
+  };
+
   return (
     <div className="flex h-full w-[280px] flex-col border-r bg-muted/30">
       {/* Header */}
@@ -189,6 +219,47 @@ export function Sidebar() {
                 devLog.click('Create Stream Button', { title: newStreamTitle });
                 handleCreateStream();
               }}>Create</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Rename Stream Dialog */}
+        <Dialog open={isRenameOpen} onOpenChange={(open) => {
+          if (!open) {
+            setIsRenameOpen(false);
+            setEditingStreamId(null);
+            setRenameTitle('');
+          }
+        }}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Rename Stream</DialogTitle>
+              <DialogDescription>
+                Enter a new name for this stream.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="py-4">
+              <Input
+                placeholder="Stream title..."
+                value={renameTitle}
+                onChange={(e) => setRenameTitle(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    handleRenameStream();
+                  }
+                }}
+                autoFocus
+              />
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => {
+                setIsRenameOpen(false);
+                setEditingStreamId(null);
+                setRenameTitle('');
+              }}>
+                Cancel
+              </Button>
+              <Button onClick={handleRenameStream}>Save Changes</Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
@@ -254,7 +325,9 @@ export function Sidebar() {
                     onClick={(e) => {
                       e.stopPropagation();
                       devLog.menuAction('Stream Options', 'Rename', { streamId: stream.id });
-                      // TODO: Open rename dialog
+                      setEditingStreamId(stream.id);
+                      setRenameTitle(stream.title);
+                      setIsRenameOpen(true);
                     }}
                   >
                     <Edit2 className="mr-2 h-4 w-4" />

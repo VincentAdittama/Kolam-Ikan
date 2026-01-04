@@ -1,7 +1,9 @@
 import React from 'react';
 import { Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { cn } from '@/lib/utils';
 import { useAppStore } from '@/store/appStore';
 import { devLog } from '@/lib/devLogger';
 import { useStreamRefetch } from '@/hooks/useStreamRefetch';
@@ -15,9 +17,28 @@ export function MainView() {
     activeStreamId,
     isLoadingEntries,
     addEntry,
+    setCurrentStream,
   } = useAppStore();
 
   const { refetchStreams } = useStreamRefetch();
+
+  const [isEditingTitle, setIsEditingTitle] = React.useState(false);
+  const [isEditingDescription, setIsEditingDescription] = React.useState(false);
+  const [editTitle, setEditTitle] = React.useState('');
+  const [editDescription, setEditDescription] = React.useState('');
+
+  const handleUpdateStream = async (updates: { title?: string; description?: string }) => {
+    if (!activeStreamId) return;
+
+    try {
+      await api.updateStream(activeStreamId, updates);
+      const updatedData = await api.getStreamDetails(activeStreamId);
+      setCurrentStream(updatedData.stream);
+      refetchStreams();
+    } catch (error) {
+      devLog.apiError('update_stream', error);
+    }
+  };
 
   const handleCreateEntry = async () => {
     if (!activeStreamId) return;
@@ -73,9 +94,80 @@ export function MainView() {
     <div className="flex h-full flex-1 flex-col">
       {/* Stream Header */}
       <div className="border-b px-6 py-4">
-        <h1 className="text-2xl font-bold">{currentStream.title}</h1>
-        {currentStream.description && (
-          <p className="text-muted-foreground mt-1">{currentStream.description}</p>
+        {isEditingTitle ? (
+          <Input
+            value={editTitle}
+            onChange={(e) => setEditTitle(e.target.value)}
+            onBlur={() => {
+              if (editTitle.trim() && editTitle !== currentStream.title) {
+                handleUpdateStream({ title: editTitle.trim() });
+              }
+              setIsEditingTitle(false);
+            }}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                if (editTitle.trim() && editTitle !== currentStream.title) {
+                  handleUpdateStream({ title: editTitle.trim() });
+                }
+                setIsEditingTitle(false);
+              }
+              if (e.key === 'Escape') {
+                setIsEditingTitle(false);
+              }
+            }}
+            className="text-2xl font-bold h-auto py-0 px-0 border-none focus-visible:ring-0"
+            autoFocus
+          />
+        ) : (
+          <h1 
+            className="text-2xl font-bold cursor-pointer hover:bg-accent/50 rounded px-1 -ml-1 transition-colors"
+            onClick={() => {
+              setEditTitle(currentStream.title);
+              setIsEditingTitle(true);
+            }}
+          >
+            {currentStream.title}
+          </h1>
+        )}
+        
+        {isEditingDescription ? (
+          <Input
+            value={editDescription}
+            onChange={(e) => setEditDescription(e.target.value)}
+            onBlur={() => {
+              if (editDescription !== (currentStream.description || '')) {
+                handleUpdateStream({ description: editDescription });
+              }
+              setIsEditingDescription(false);
+            }}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                if (editDescription !== (currentStream.description || '')) {
+                  handleUpdateStream({ description: editDescription });
+                }
+                setIsEditingDescription(false);
+              }
+              if (e.key === 'Escape') {
+                setIsEditingDescription(false);
+              }
+            }}
+            className="text-muted-foreground mt-1 h-auto py-0 px-0 border-none focus-visible:ring-0"
+            placeholder="Add a description..."
+            autoFocus
+          />
+        ) : (
+          <p 
+            className={cn(
+              "text-muted-foreground mt-1 cursor-pointer hover:bg-accent/50 rounded px-1 -ml-1 transition-colors min-h-[1.5em]",
+              !currentStream.description && "text-muted-foreground/50 italic text-sm"
+            )}
+            onClick={() => {
+              setEditDescription(currentStream.description || '');
+              setIsEditingDescription(true);
+            }}
+          >
+            {currentStream.description || 'Add a description...'}
+          </p>
         )}
       </div>
 
