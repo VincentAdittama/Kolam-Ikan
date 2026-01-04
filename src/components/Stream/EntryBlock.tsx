@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import Underline from '@tiptap/extension-underline';
@@ -23,6 +23,7 @@ import {
   Link as LinkIcon,
   Sparkles,
   FileDiff,
+  CornerDownLeft,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -52,6 +53,8 @@ import { contentToProseMirror } from '@/services/bridge';
 import { EditorToolbar } from './EditorToolbar';
 import { VersionHistoryDialog } from './VersionHistoryDialog';
 import { CommitDialog } from './CommitDialog';
+
+import { SlashCommand } from '@/components/Editor/SlashCommand';
 
 const lowlight = createLowlight(common);
 
@@ -91,6 +94,9 @@ export function EntryBlock({ entry }: EntryBlockProps) {
   const { refetchStreams } = useStreamRefetch();
   const [showVersionHistory, setShowVersionHistory] = useState(false);
   const [showCommitDialog, setShowCommitDialog] = useState(false);
+  const [showNewLineHint, setShowNewLineHint] = useState(false);
+  const [isFocused, setIsFocused] = useState(false);
+  const idleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   
   // Fetch latest version to check for uncommitted changes
   const { data: latestVersion } = useLatestVersion(entry.id);
@@ -125,6 +131,28 @@ export function EntryBlock({ entry }: EntryBlockProps) {
     [entry.id]
   );
 
+  // Check if content has text
+  const hasContent = useCallback(() => {
+    const text = extractTextFromContent(entry.content);
+    return text.trim().length > 0;
+  }, [entry.content]);
+  
+  // Reset idle timer and manage hint visibility
+  const resetIdleTimer = useCallback(() => {
+    setShowNewLineHint(false);
+    
+    if (idleTimerRef.current) {
+      clearTimeout(idleTimerRef.current);
+    }
+    
+    // Only start idle timer if focused and has content
+    if (isFocused && hasContent()) {
+      idleTimerRef.current = setTimeout(() => {
+        setShowNewLineHint(true);
+      }, 1500); // Show hint after 1.5 seconds of inactivity
+    }
+  }, [isFocused, hasContent]);
+
   // Initialize Tiptap editor
   const editor = useEditor({
     extensions: [
@@ -149,6 +177,7 @@ export function EntryBlock({ entry }: EntryBlockProps) {
       TableRow,
       TableCell,
       TableHeader,
+      SlashCommand,
     ],
     content: entry.content,
     onUpdate: ({ editor }) => {
@@ -156,16 +185,24 @@ export function EntryBlock({ entry }: EntryBlockProps) {
       devLog.editorAction('Content update', { entryId: entry.id, sequenceId: entry.sequenceId });
       updateEntry(entry.id, { content: json });
       debouncedSave(json);
+      resetIdleTimer();
     },
     onFocus: () => {
       devLog.focus(`Entry editor #${entry.sequenceId}`, { entryId: entry.id });
+      setIsFocused(true);
+      resetIdleTimer();
     },
     onBlur: () => {
       devLog.blur(`Entry editor #${entry.sequenceId}`, { entryId: entry.id });
+      setIsFocused(false);
+      setShowNewLineHint(false);
+      if (idleTimerRef.current) {
+        clearTimeout(idleTimerRef.current);
+      }
     },
     editorProps: {
       attributes: {
-        class: 'prose prose-sm dark:prose-invert max-w-none focus:outline-none min-h-[60px]',
+        class: 'prose prose-sm dark:prose-invert max-w-none focus:outline-none',
       },
       handlePaste: (view, event) => {
         const text = event.clipboardData?.getData('text/plain');
@@ -208,6 +245,15 @@ export function EntryBlock({ entry }: EntryBlockProps) {
       setLastCreatedEntryId(null);
     }
   }, [editor, lastCreatedEntryId, entry.id, setLastCreatedEntryId]);
+
+  // Cleanup idle timer on unmount
+  useEffect(() => {
+    return () => {
+      if (idleTimerRef.current) {
+        clearTimeout(idleTimerRef.current);
+      }
+    };
+  }, []);
 
   const handleDelete = async () => {
     devLog.deleteEntry(entry.id, entry.sequenceId);
@@ -485,6 +531,19 @@ export function EntryBlock({ entry }: EntryBlockProps) {
       {/* Editor Content */}
       <div className="px-4 py-3">
         <EditorContent editor={editor} />
+        
+        {/* New line hint - appears when user stops typing */}
+        <div
+          className={cn(
+            "flex items-center gap-1.5 text-xs text-muted-foreground/70 transition-all duration-300 ease-out overflow-hidden",
+            showNewLineHint 
+              ? "max-h-6 opacity-100 mt-2 translate-y-0" 
+              : "max-h-0 opacity-0 mt-0 -translate-y-1"
+          )}
+        >
+          <CornerDownLeft className="h-3 w-3" />
+          <span>Press <kbd className="px-1 py-0.5 mx-0.5 text-[10px] font-medium bg-muted rounded border border-border/50">Enter</kbd> to add a new line</span>
+        </div>
       </div>
       
       {/* Version History Dialog */}

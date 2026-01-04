@@ -7,6 +7,7 @@ import { RightPanel } from "@/components/Layout/RightPanel";
 import { useAppStore } from "@/store/appStore";
 import { cn } from "@/lib/utils";
 import "./App.css";
+import 'tippy.js/dist/tippy.css';
 
 const queryClient = new QueryClient({
   defaultOptions: {
