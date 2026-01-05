@@ -116,7 +116,11 @@ export function AuthView() {
           <Button variant="outline" className="w-full" onClick={handleSignUp} disabled={isLoading}>
             Create Account
           </Button>
-          <Button variant="ghost" className="w-full text-xs text-muted-foreground" onClick={() => setUser({ id: "default-user" } as any, null)}>
+          <Button 
+            variant="ghost" 
+            className="w-full text-xs text-muted-foreground hover:text-foreground transition-colors" 
+            onClick={() => setUser({ id: "default-user", email: "local@usage" } as any, null)}
+          >
             Continue with Local Vault only
           </Button>
         </CardFooter>

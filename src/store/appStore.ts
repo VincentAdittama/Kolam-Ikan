@@ -335,7 +335,16 @@ export const useAppStore = create<AppState>((set) => ({
   // User Actions
   setUser: (user, session) => {
     devLog.action("Store: setUser", { userId: user?.id });
-    set({ user, session, isAuthenticated: !!user });
+    set({
+      user,
+      session,
+      isAuthenticated: !!user,
+      // Clear data when switching users
+      streams: [],
+      currentStream: null,
+      entries: [],
+      activeStreamId: null,
+    });
   },
   logout: () => {
     devLog.action("Store: logout");
@@ -344,6 +353,11 @@ export const useAppStore = create<AppState>((set) => ({
       session: null,
       isAuthenticated: false,
       activeProfileId: null,
+      // Reset all data
+      streams: [],
+      currentStream: null,
+      entries: [],
+      activeStreamId: null,
     });
   },
 }));

@@ -9,6 +9,9 @@ import {
   HelpCircle,
   PanelLeft,
   Calendar,
+  Cloud,
+  HardDrive,
+  LogOut,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -51,6 +54,7 @@ export function Sidebar() {
     toggleSidebar,
     dragRegionHeight,
     user,
+    logout,
   } = useAppStore();
 
   const [isNewStreamOpen, setIsNewStreamOpen] = React.useState(false);
@@ -453,16 +457,71 @@ export function Sidebar() {
       </ScrollArea>
 
       {/* Footer */}
-      <div className="border-t p-2">
-        <Button 
-          variant="ghost" 
-          className="w-full justify-start gap-2" 
-          size="sm"
-          onClick={() => devLog.click('Quick Start Guide Button')}
-        >
-          <HelpCircle className="h-4 w-4" />
-          Quick Start Guide
-        </Button>
+      <div className="border-t p-2 space-y-2 bg-muted/20">
+        {/* User Account Switcher */}
+        <div className="space-y-1">
+          <div className="px-2 py-1 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider flex items-center justify-between">
+            <span>Account</span>
+            <span className={cn("text-[9px] px-1.5 rounded-sm font-bold", user?.id === 'default-user' ? "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400" : "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400")}>
+              {user?.id === 'default-user' ? 'LOCAL' : 'CLOUD'}
+            </span>
+          </div>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button 
+                variant="ghost" 
+                className="w-full justify-between items-center px-2 py-1.5 h-auto font-normal hover:bg-accent/50 group border border-transparent hover:border-accent" 
+                size="sm"
+              >
+                <div className="flex items-center gap-2 min-w-0">
+                  <div 
+                    className="h-6 w-6 rounded-lg flex items-center justify-center shrink-0 shadow-sm bg-primary/10 text-primary"
+                  >
+                    {user?.id === 'default-user' ? (
+                      <HardDrive className="h-3.5 w-3.5" />
+                    ) : (
+                      <Cloud className="h-3.5 w-3.5" />
+                    )}
+                  </div>
+                  <div className="flex flex-col items-start min-w-0">
+                    <span className="truncate text-sm font-medium leading-none">
+                      {user?.id === 'default-user' ? 'Local Vault' : user?.email || 'User'}
+                    </span>
+                    <span className="text-[10px] text-muted-foreground leading-tight truncate w-full">
+                      {user?.id === 'default-user' ? 'Device storage only' : 'Synced'}
+                    </span>
+                  </div>
+                </div>
+                <MoreVertical className="h-3.5 w-3.5 text-muted-foreground group-hover:text-foreground transition-all" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-[220px] p-1">
+              <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1">
+                Account Actions
+              </div>
+              <DropdownMenuItem 
+                className="text-destructive focus:text-destructive cursor-pointer"
+                onClick={logout}
+              >
+                <LogOut className="mr-2 h-4 w-4" />
+                {user?.id === 'default-user' ? 'Return to Sign In' : 'Log Out'}
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+
+        {/* Global Actions */}
+        <div className="px-1">
+          <Button 
+            variant="ghost" 
+            className="w-full justify-start gap-1.5 h-8 px-2 text-xs font-medium text-muted-foreground hover:text-foreground" 
+            size="sm"
+            onClick={() => devLog.click('Quick Start Guide Button')}
+          >
+            <HelpCircle className="h-3.5 w-3.5" />
+            Quick Start Guide
+          </Button>
+        </div>
       </div>
     </div>
   );

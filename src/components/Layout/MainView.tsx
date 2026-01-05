@@ -231,21 +231,6 @@ export function MainView() {
     };
   };
 
-  if (!currentStream) {
-    return (
-      <div className="flex h-full flex-1 items-center justify-center">
-        <div className="text-center">
-          <h2 className="text-xl font-semibold text-muted-foreground mb-2">
-            No stream selected
-          </h2>
-          <p className="text-muted-foreground">
-            Select a stream from the sidebar or create a new one
-          </p>
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div 
       ref={mainContainerRef}
@@ -275,110 +260,117 @@ export function MainView() {
             </Button>
           )}
           <div className="flex-1 min-w-0">
-            {isEditingTitle ? (
-            <Input
-                value={editTitle}
-                onChange={(e) => setEditTitle(e.target.value)}
-                onBlur={() => {
-                if (editTitle.trim() && editTitle !== currentStream.title) {
-                    handleUpdateStream({ title: editTitle.trim() });
-                }
-                setIsEditingTitle(false);
-                }}
-                onKeyDown={(e) => {
-                if (e.key === 'Enter') {
-                    if (editTitle.trim() && editTitle !== currentStream.title) {
-                    handleUpdateStream({ title: editTitle.trim() });
-                    }
-                    setIsEditingTitle(false);
-                }
-                if (e.key === 'Escape') {
-                    setIsEditingTitle(false);
-                }
-                }}
-                className="text-lg font-bold h-auto py-0 px-0 border-none focus-visible:ring-0 leading-tight"
-                autoFocus
-            />
-            ) : (
-            <h1 
-                className="text-lg font-bold cursor-pointer hover:bg-accent/50 rounded px-1 -ml-1 transition-colors truncate leading-tight"
-                onClick={() => {
-                setEditTitle(currentStream.title);
-                setIsEditingTitle(true);
-                }}
-            >
-                {currentStream.title}
-            </h1>
-            )}
-            
-            {isEditingDescription ? (
-            <Input
-                value={editDescription}
-                onChange={(e) => setEditDescription(e.target.value)}
-                onBlur={() => {
-                if (editDescription !== (currentStream.description || '')) {
-                    handleUpdateStream({ description: editDescription });
-                }
-                setIsEditingDescription(false);
-                }}
-                onKeyDown={(e) => {
-                if (e.key === 'Enter') {
-                    if (editDescription !== (currentStream.description || '')) {
-                    handleUpdateStream({ description: editDescription });
-                    }
-                    setIsEditingDescription(false);
-                }
-                if (e.key === 'Escape') {
-                    setIsEditingDescription(false);
-                }
-                }}
-                className="text-muted-foreground -mt-0.5 text-xs h-auto py-0 px-0 border-none focus-visible:ring-0 leading-tight"
-                placeholder="Add a description..."
-                autoFocus
-            />
-            ) : (
-            <p 
-                className={cn(
-                "text-muted-foreground -mt-0.5 text-xs cursor-pointer hover:bg-accent/50 rounded px-1 -ml-1 transition-colors truncate leading-tight",
-                !currentStream.description && "text-muted-foreground/50 italic"
+            {currentStream ? (
+              <>
+                {isEditingTitle ? (
+                  <Input
+                    value={editTitle}
+                    onChange={(e) => setEditTitle(e.target.value)}
+                    onBlur={() => {
+                      if (editTitle.trim() && editTitle !== currentStream.title) {
+                        handleUpdateStream({ title: editTitle.trim() });
+                      }
+                      setIsEditingTitle(false);
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        if (editTitle.trim() && editTitle !== currentStream.title) {
+                          handleUpdateStream({ title: editTitle.trim() });
+                        }
+                        setIsEditingTitle(false);
+                      }
+                      if (e.key === 'Escape') {
+                        setIsEditingTitle(false);
+                      }
+                    }}
+                    className="text-lg font-bold h-auto py-0 px-0 border-none focus-visible:ring-0 leading-tight"
+                    autoFocus
+                  />
+                ) : (
+                  <h1 
+                    className="text-lg font-bold cursor-pointer hover:bg-accent/50 rounded px-1 -ml-1 transition-colors truncate leading-tight"
+                    onClick={() => {
+                      setEditTitle(currentStream.title);
+                      setIsEditingTitle(true);
+                    }}
+                  >
+                    {currentStream.title}
+                  </h1>
                 )}
-                onClick={() => {
-                setEditDescription(currentStream.description || '');
-                setIsEditingDescription(true);
-                }}
-            >
-                {currentStream.description || 'Add a description...'}
-            </p>
-          )}
+                
+                {isEditingDescription ? (
+                  <Input
+                    value={editDescription}
+                    onChange={(e) => setEditDescription(e.target.value)}
+                    onBlur={() => {
+                      if (editDescription !== (currentStream.description || '')) {
+                        handleUpdateStream({ description: editDescription });
+                      }
+                      setIsEditingDescription(false);
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        if (editDescription !== (currentStream.description || '')) {
+                          handleUpdateStream({ description: editDescription });
+                        }
+                        setIsEditingDescription(false);
+                      }
+                      if (e.key === 'Escape') {
+                        setIsEditingDescription(false);
+                      }
+                    }}
+                    className="text-muted-foreground -mt-0.5 text-xs h-auto py-0 px-0 border-none focus-visible:ring-0 leading-tight"
+                    placeholder="Add a description..."
+                    autoFocus
+                  />
+                ) : (
+                  <p 
+                    className={cn(
+                      "text-muted-foreground -mt-0.5 text-xs cursor-pointer hover:bg-accent/50 rounded px-1 -ml-1 transition-colors truncate leading-tight",
+                      !currentStream.description && "text-muted-foreground/50 italic"
+                    )}
+                    onClick={() => {
+                      setEditDescription(currentStream.description || '');
+                      setIsEditingDescription(true);
+                    }}
+                  >
+                    {currentStream.description || 'Add a description...'}
+                  </p>
+                )}
+              </>
+            ) : null}
+          </div>
         </div>
-      </div>
-        
         
         <div className="flex items-center">
-            {/* Toggle Editor Toolbar Button */}
-            <Button
-                variant="ghost"
-                size="sm"
-                onClick={toggleEditorToolbar}
-                className={cn(
-                    "ml-4 text-muted-foreground hover:text-foreground",
-                    showEditorToolbar && "bg-accent text-accent-foreground"
-                )}
-                title={showEditorToolbar ? "Hide Editor Configs" : "Show Editor Configs"}
-            >
-                <Settings2 className="h-4 w-4" />
-            </Button>
+            {currentStream && (
+              <>
+                {/* Toggle Editor Toolbar Button */}
+                <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={toggleEditorToolbar}
+                    className={cn(
+                        "ml-4 text-muted-foreground hover:text-foreground",
+                        showEditorToolbar && "bg-accent text-accent-foreground"
+                    )}
+                    title={showEditorToolbar ? "Hide Editor Configs" : "Show Editor Configs"}
+                >
+                    <Settings2 className="h-4 w-4" />
+                </Button>
 
-            {/* Toggle View Button */}
-            <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setIsCompactMode(!isCompactMode)}
-                className="ml-2 text-muted-foreground hover:text-foreground"
-                title={isCompactMode ? "Switch to Expanded View" : "Switch to Compact View"}
-            >
-                {isCompactMode ? <List className="h-4 w-4" /> : <LayoutGrid className="h-4 w-4" />}
-            </Button>
+                {/* Toggle View Button */}
+                <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setIsCompactMode(!isCompactMode)}
+                    className="ml-2 text-muted-foreground hover:text-foreground"
+                    title={isCompactMode ? "Switch to Expanded View" : "Switch to Compact View"}
+                >
+                    {isCompactMode ? <List className="h-4 w-4" /> : <LayoutGrid className="h-4 w-4" />}
+                </Button>
+              </>
+            )}
 
             {/* Toggle Right Panel Button (only when hidden) */}
             {!rightPanelVisible && (
@@ -395,58 +387,74 @@ export function MainView() {
         </div>
       </div>
 
-      {/* Entries */}
-      <ScrollArea 
-        className="flex-1 select-none" 
-        ref={scrollAreaRef}
-        data-scroll-area
-        >
-        <div className="px-6 py-4 space-y-4">
-          {isLoadingEntries ? (
-            // Skeleton loaders
-            Array.from({ length: 3 }).map((_, i) => (
-              <div
-                key={i}
-                className="animate-pulse rounded-lg border p-4 space-y-3"
-              >
-                <div className="flex items-center gap-2">
-                  <div className="h-8 w-8 rounded-full bg-muted" />
-                  <div className="h-4 w-24 rounded bg-muted" />
-                </div>
-                <div className="space-y-2">
-                  <div className="h-4 w-full rounded bg-muted" />
-                  <div className="h-4 w-3/4 rounded bg-muted" />
-                </div>
-              </div>
-            ))
-          ) : (
-            <>
-              {entries.map((entry, index) => (
-                <React.Fragment key={entry.id}>
-                  {/* Time gap indicator */}
-                  {index > 0 && (
-                    <TimeGapIndicator
-                      prevTimestamp={entries[index - 1].createdAt}
-                      currentTimestamp={entry.createdAt}
-                    />
-                  )}
-                  <EntryBlock entry={entry} isCompact={isCompactMode} />
-                </React.Fragment>
-              ))}
-
-              {/* New entry button */}
-              <Button
-                variant="outline"
-                className="w-full border-dashed"
-                onClick={handleCreateEntry}
-              >
-                <Plus className="mr-2 h-4 w-4" />
-                New Entry
-              </Button>
-            </>
-          )}
+      {/* Main Content Area */}
+      {!currentStream ? (
+        <div className="flex h-full flex-1 items-center justify-center">
+          <div className="text-center">
+            <h2 className="text-xl font-semibold text-muted-foreground mb-2">
+              No stream selected
+            </h2>
+            <p className="text-muted-foreground">
+              Select a stream from the sidebar or create a new one
+            </p>
+          </div>
         </div>
-      </ScrollArea>
+      ) : (
+        <>
+          {/* Entries */}
+          <ScrollArea 
+            className="flex-1 select-none" 
+            ref={scrollAreaRef}
+            data-scroll-area
+          >
+            <div className="px-6 py-4 space-y-4">
+              {isLoadingEntries ? (
+                // Skeleton loaders
+                Array.from({ length: 3 }).map((_, i) => (
+                  <div
+                    key={i}
+                    className="animate-pulse rounded-lg border p-4 space-y-3"
+                  >
+                    <div className="flex items-center gap-2">
+                      <div className="h-8 w-8 rounded-full bg-muted" />
+                      <div className="h-4 w-24 rounded bg-muted" />
+                    </div>
+                    <div className="space-y-2">
+                      <div className="h-4 w-full rounded bg-muted" />
+                      <div className="h-4 w-3/4 rounded bg-muted" />
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <>
+                  {entries.map((entry, index) => (
+                    <React.Fragment key={entry.id}>
+                      {/* Time gap indicator */}
+                      {index > 0 && (
+                        <TimeGapIndicator
+                          prevTimestamp={entries[index - 1].createdAt}
+                          currentTimestamp={entry.createdAt}
+                        />
+                      )}
+                      <EntryBlock entry={entry} isCompact={isCompactMode} />
+                    </React.Fragment>
+                  ))}
+
+                  {/* New entry button */}
+                  <Button
+                    variant="outline"
+                    className="w-full border-dashed"
+                    onClick={handleCreateEntry}
+                  >
+                    <Plus className="mr-2 h-4 w-4" />
+                    New Entry
+                  </Button>
+                </>
+              )}
+            </div>
+          </ScrollArea>
+        </>
+      )}
       
       {/* Selection Box Overlay */}
       {isSelecting && selectionRect && (
