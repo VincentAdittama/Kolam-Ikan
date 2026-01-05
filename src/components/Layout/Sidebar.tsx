@@ -213,7 +213,7 @@ export function Sidebar() {
   return (
     <div className="flex h-full w-[280px] flex-col border-r bg-muted/30">
       {/* Header - pl-(--macos-traffic-light-width) accounts for macOS traffic light buttons */}
-      <div className="flex items-center justify-between border-b pl-(--macos-traffic-light-width) pr-4" style={{ height: `${dragRegionHeight}px` }}>
+      <div className="flex items-center justify-between border-b pl-(--macos-traffic-light-width) px-4" style={{ height: `${dragRegionHeight}px` }}>
         <h3 className="font-semibold text-base">Streams</h3>
         <div className="flex items-center gap-1">
           <Button
