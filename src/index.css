@@ -89,3 +89,150 @@
   --color-input: hsl(217.2 32.6% 17.5%);
   --color-ring: hsl(224.3 76.3% 48%);
 }
+.workspace-tab-header-container {
+  display: flex;
+  background-color: var(--color-background);
+  border-bottom: 1px solid var(--color-border);
+  height: 40px;
+  align-items: center;
+  user-select: none;
+  padding: 0 16px 0 0;
+}
+
+.workspace-tab-header-container-inner {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+  height: 100%;
+}
+
+.workspace-tab-header {
+  display: flex;
+  align-items: center;
+  height: 100%;
+  padding: 0 8px;
+  cursor: pointer;
+  position: relative;
+  color: var(--color-muted-foreground);
+  transition: color 0.2s ease;
+  min-width: 0;
+  max-width: 200px;
+}
+
+.workspace-tab-header:hover {
+  background-color: var(--color-accent);
+  color: var(--color-foreground);
+}
+
+.workspace-tab-header.is-active {
+  color: var(--color-foreground);
+}
+
+.workspace-tab-header.is-active::after {
+  content: "";
+  position: absolute;
+  bottom: -1px;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background-color: var(--color-primary);
+}
+
+.workspace-tab-header-inner {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.workspace-tab-header-inner-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.workspace-tab-header-inner-icon svg {
+  width: 18px;
+  height: 18px;
+}
+
+.workspace-tab-header-inner-title {
+  font-size: 13px;
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.workspace-tab-header-inner-close-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2px;
+  border-radius: 4px;
+  margin-left: 4px;
+  opacity: 0;
+  transition: opacity 0.2s ease, background-color 0.2s ease;
+}
+
+.workspace-tab-header:hover .workspace-tab-header-inner-close-button {
+  opacity: 0.7;
+}
+
+.workspace-tab-header-inner-close-button:hover {
+  background-color: var(--color-accent);
+  opacity: 1 !important;
+}
+
+.workspace-tab-header-inner-close-button svg {
+  width: 14px;
+  height: 14px;
+}
+
+.workspace-tab-header-spacer {
+  flex: 1;
+}
+
+.workspace-tab-header-new-tab,
+.workspace-tab-header-tab-list,
+.sidebar-toggle-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 4px;
+  cursor: pointer;
+  color: var(--color-muted-foreground);
+  transition: color 0.2s ease, background-color 0.2s ease;
+}
+
+.workspace-tab-header-new-tab:hover,
+.workspace-tab-header-tab-list:hover,
+.sidebar-toggle-button:hover {
+  color: var(--color-foreground);
+  background-color: var(--color-accent);
+}
+
+.sidebar-toggle-button svg {
+  width: 20px;
+  height: 20px;
+}
+
+.sidebar-toggle-icon-inner {
+  transition: transform 0.2s ease;
+}
+
+.sidebar-toggle-button.is-collapsed .sidebar-toggle-icon-inner {
+  transform: translateX(12px);
+}
+
+:root.dark .workspace-tab-header-container {
+  background-color: #1e1e1e;
+  border-bottom-color: #2e2e2e;
+}
+
+:root.dark .workspace-tab-header.is-active {
+  background-color: #2e2e2e;
+}

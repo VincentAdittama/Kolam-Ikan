@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react';
-import { Plus, LayoutGrid, List, Settings2, PanelLeft } from 'lucide-react';
+import { Plus, LayoutGrid, List, Settings2, PanelLeft, PanelRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -34,6 +34,8 @@ export function MainView() {
     toggleEditorToolbar,
     sidebarVisible,
     toggleSidebar,
+    rightPanelVisible,
+    toggleRightPanel,
     dragRegionHeight,
   } = useAppStore();
 
@@ -373,6 +375,19 @@ export function MainView() {
             >
                 {isCompactMode ? <List className="h-4 w-4" /> : <LayoutGrid className="h-4 w-4" />}
             </Button>
+
+            {/* Toggle Right Panel Button (only when hidden) */}
+            {!rightPanelVisible && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={toggleRightPanel}
+                className="ml-2 text-muted-foreground hover:text-foreground"
+                title="Show Right Panel"
+              >
+                <PanelRight className="h-4 w-4" />
+              </Button>
+            )}
         </div>
       </div>
 

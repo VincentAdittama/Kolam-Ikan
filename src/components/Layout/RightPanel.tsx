@@ -8,9 +8,9 @@ import {
   ArrowDownToLine,
   X,
   AlertCircle,
-  GitBranch,
   Settings,
   Maximize2,
+  PanelRight,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
@@ -99,6 +99,7 @@ export function RightPanel() {
     pendingBlock,
     setActiveProfileId,
     dragRegionHeight,
+    toggleRightPanel,
   } = useAppStore();
 
   const { refetchStreams } = useStreamRefetch();
@@ -283,10 +284,10 @@ export function RightPanel() {
 
       // Strict bridge key validation
       if (bridgeKey !== pendingBlock.bridgeKey) {
-        const errorMsg = bridgeKey 
+        const errorMsg = bridgeKey
           ? `Bridge key mismatch. Expected "${pendingBlock.bridgeKey}" but found "${bridgeKey}".`
           : `Bridge key missing in the AI response. Expected "${pendingBlock.bridgeKey}".`;
-          
+
         devLog.error("Bridge key mismatch", {
           expected: pendingBlock.bridgeKey,
           found: bridgeKey,
@@ -306,7 +307,10 @@ export function RightPanel() {
 
       // Log warnings to console for debugging but don't show to user (user sees formatted error if it blocks)
       if (parseWarnings && parseWarnings.length > 0) {
-        console.debug("[Bridge Import] Internal parse warnings:", parseWarnings);
+        console.debug(
+          "[Bridge Import] Internal parse warnings:",
+          parseWarnings
+        );
       }
 
       // Safety check - ensure we have content
@@ -386,32 +390,47 @@ export function RightPanel() {
 
   return (
     <div className="flex h-full w-[320px] flex-col border-l bg-muted/30 overflow-hidden">
-      {/* Tab Navigation - Sticky Header */}
-      <div className="sticky top-0 z-20 flex border-b bg-background/80 backdrop-blur-md" style={{ height: `${dragRegionHeight}px` }}>
-        <button
-          onClick={() => setActiveTab("context")}
-          className={cn(
-            "flex-1 flex items-center justify-center gap-2 px-4 text-sm font-medium transition-colors border-b-2",
-            activeTab === "context"
-              ? "border-primary text-primary"
-              : "border-transparent text-muted-foreground hover:text-foreground"
-          )}
+      {/* Header */}
+      <div
+        className="flex items-center justify-between border-b px-4 select-none shrink-0"
+        style={{
+          height: `${dragRegionHeight}px`,
+        }}
+      >
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setActiveTab("context")}
+            className={cn(
+              "px-3 py-1 text-lg font-semibold transition-colors rounded-md",
+              activeTab === "context"
+                ? "bg-accent text-accent-foreground"
+                : "text-muted-foreground hover:text-foreground hover:bg-accent/50"
+            )}
+          >
+            Context
+          </button>
+          <button
+            onClick={() => setActiveTab("branches")}
+            className={cn(
+              "px-3 py-1 text-lg font-semibold transition-colors rounded-md",
+              activeTab === "branches"
+                ? "bg-accent text-accent-foreground"
+                : "text-muted-foreground hover:text-foreground hover:bg-accent/50"
+            )}
+          >
+            Branches
+          </button>
+        </div>
+
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-8 w-8 text-muted-foreground hover:text-foreground"
+          onClick={toggleRightPanel}
+          title="Hide Sidebar"
         >
-          <Settings className="h-4 w-4" />
-          Context
-        </button>
-        <button
-          onClick={() => setActiveTab("branches")}
-          className={cn(
-            "flex-1 flex items-center justify-center gap-2 px-4 text-sm font-medium transition-colors border-b-2",
-            activeTab === "branches"
-              ? "border-primary text-primary"
-              : "border-transparent text-muted-foreground hover:text-foreground"
-          )}
-        >
-          <GitBranch className="h-4 w-4" />
-          Branches
-        </button>
+          <PanelRight className="h-4 w-4" />
+        </Button>
       </div>
 
       {/* Branch Visualization Tab */}
@@ -453,21 +472,24 @@ export function RightPanel() {
               <div className="flex items-center justify-between">
                 <h3 className="text-sm font-medium">Active Profile</h3>
                 <div className="flex items-center gap-2">
-                   <Button 
-                      variant="ghost" 
-                      size="sm" 
-                      className="h-6 text-xs px-2 text-muted-foreground hover:text-foreground"
-                      onClick={() => setShowManageProfiles(true)}
-                   >
-                      <Settings className="h-3 w-3 mr-1" />
-                      Manage
-                   </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-6 text-xs px-2 text-muted-foreground hover:text-foreground"
+                    onClick={() => setShowManageProfiles(true)}
+                  >
+                    <Settings className="h-3 w-3 mr-1" />
+                    Manage
+                  </Button>
                 </div>
               </div>
               <div className="mt-2">
                 <ProfilePicker
                   onProfileSelect={(profile) => {
-                    devLog.action("Set active profile", { profileId: profile.id, name: profile.name });
+                    devLog.action("Set active profile", {
+                      profileId: profile.id,
+                      name: profile.name,
+                    });
                     setActiveProfileId(profile.id);
                   }}
                   showCreateButton={true}
@@ -628,72 +650,72 @@ export function RightPanel() {
                 </div>
               )}
 
-            {pendingBlock && (
+              {pendingBlock && (
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      className="w-full text-muted-foreground hover:text-destructive gap-2"
+                      onClick={handleCancelBridge}
+                    >
+                      <RefreshCw className="h-4 w-4" />
+                      Cancel Bridge (Undo)
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>Cancel this bridge and restore staged context</p>
+                  </TooltipContent>
+                </Tooltip>
+              )}
+
               <Tooltip>
                 <TooltipTrigger asChild>
                   <Button
-                    variant="ghost"
-                    className="w-full text-muted-foreground hover:text-destructive gap-2"
-                    onClick={handleCancelBridge}
+                    className="w-full"
+                    disabled={stagedEntries.length === 0 || isExporting}
+                    onClick={handleCopyBridgePrompt}
                   >
-                    <RefreshCw className="h-4 w-4" />
-                    Cancel Bridge (Undo)
+                    <Copy className="mr-2 h-4 w-4" />
+                    {isExporting ? "Preparing..." : "Launch Bridge"}
                   </Button>
                 </TooltipTrigger>
                 <TooltipContent>
-                  <p>Cancel this bridge and restore staged context</p>
+                  <p>Copy the staged context with directive to clipboard</p>
+                  <p className="text-xs text-muted-foreground">Cmd+Shift+C</p>
                 </TooltipContent>
               </Tooltip>
-            )}
 
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  className="w-full"
-                  disabled={stagedEntries.length === 0 || isExporting}
-                  onClick={handleCopyBridgePrompt}
-                >
-                  <Copy className="mr-2 h-4 w-4" />
-                  {isExporting ? "Preparing..." : "Launch Bridge"}
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>
-                <p>Copy the staged context with directive to clipboard</p>
-                <p className="text-xs text-muted-foreground">Cmd+Shift+C</p>
-              </TooltipContent>
-            </Tooltip>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className="w-full"
+                    disabled={!pendingBlock || isImporting}
+                    onClick={handleBridgeResponse}
+                  >
+                    <ArrowDownToLine className="mr-2 h-4 w-4" />
+                    {isImporting ? "Processing..." : "Bridge Response"}
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Import AI response from clipboard</p>
+                  <p className="text-xs text-muted-foreground">Cmd+Shift+V</p>
+                </TooltipContent>
+              </Tooltip>
 
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  variant="outline"
-                  className="w-full"
-                  disabled={!pendingBlock || isImporting}
-                  onClick={handleBridgeResponse}
-                >
-                  <ArrowDownToLine className="mr-2 h-4 w-4" />
-                  {isImporting ? "Processing..." : "Bridge Response"}
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>
-                <p>Import AI response from clipboard</p>
-                <p className="text-xs text-muted-foreground">Cmd+Shift+V</p>
-              </TooltipContent>
-            </Tooltip>
-
-            {pendingBlock && (
-              <p className="text-center text-xs text-muted-foreground">
-                Waiting for response (key: {pendingBlock.bridgeKey})
-              </p>
-            )}
+              {pendingBlock && (
+                <p className="text-center text-xs text-muted-foreground">
+                  Waiting for response (key: {pendingBlock.bridgeKey})
+                </p>
+              )}
+            </div>
           </div>
-        </div>
-      </ScrollArea>
+        </ScrollArea>
       )}
-      
-      <ManageProfilesDialog 
-        open={showManageProfiles} 
-        onOpenChange={setShowManageProfiles} 
+
+      <ManageProfilesDialog
+        open={showManageProfiles}
+        onOpenChange={setShowManageProfiles}
       />
     </div>
   );
