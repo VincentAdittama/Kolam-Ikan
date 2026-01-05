@@ -254,7 +254,7 @@ export function MainView() {
       <div 
         className={cn(
           "border-b px-6 flex items-center justify-between select-none transition-all duration-300",
-          !sidebarVisible && "pl-[100px]"
+          !sidebarVisible && "pl-(--macos-traffic-light-width)"
         )}
         style={{ height: `${dragRegionHeight}px` }}
       >

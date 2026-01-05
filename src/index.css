@@ -24,6 +24,7 @@
   --radius-sm: 0.25rem;
   --radius-md: 0.375rem;
   --radius-lg: 0.5rem;
+  --macos-traffic-light-width: 90px;
 }
 
 @layer base {

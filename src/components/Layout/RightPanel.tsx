@@ -401,7 +401,7 @@ export function RightPanel() {
           <button
             onClick={() => setActiveTab("context")}
             className={cn(
-              "px-3 py-1 text-lg font-semibold transition-colors rounded-md",
+              "px-3 py-1 text-base font-semibold transition-colors rounded-md",
               activeTab === "context"
                 ? "bg-accent text-accent-foreground"
                 : "text-muted-foreground hover:text-foreground hover:bg-accent/50"
@@ -412,7 +412,7 @@ export function RightPanel() {
           <button
             onClick={() => setActiveTab("branches")}
             className={cn(
-              "px-3 py-1 text-lg font-semibold transition-colors rounded-md",
+              "px-3 py-1 text-base font-semibold transition-colors rounded-md",
               activeTab === "branches"
                 ? "bg-accent text-accent-foreground"
                 : "text-muted-foreground hover:text-foreground hover:bg-accent/50"

@@ -8,6 +8,7 @@ import {
   Edit2,
   HelpCircle,
   PanelLeft,
+  Calendar,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -175,12 +176,45 @@ export function Sidebar() {
     }
   };
 
+  const handleDailyStream = async () => {
+    const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
+    devLog.action('Daily Stream Button Clicked', { date: today });
+
+    // Check if stream already exists
+    const existing = streams.find((s) => s.title === today);
+
+    if (existing) {
+      devLog.action('Switching to existing daily stream', { streamId: existing.id });
+      setActiveStreamId(existing.id);
+    } else {
+      devLog.action('Creating new daily stream', { title: today });
+      devLog.apiCall('POST', 'create_stream', { title: today });
+      try {
+        const newStream = await api.createStream({ title: today });
+        devLog.apiSuccess('create_stream');
+        setActiveStreamId(newStream.id);
+        refetchStreams();
+      } catch (error) {
+        devLog.apiError('create_stream', error);
+      }
+    }
+  };
+
   return (
     <div className="flex h-full w-[280px] flex-col border-r bg-muted/30">
-      {/* Header - pl-[100px] accounts for macOS traffic light buttons */}
-      <div className="flex items-center justify-between border-b pl-[100px] pr-4" style={{ height: `${dragRegionHeight}px` }}>
-        <h2 className="font-semibold text-lg">Streams</h2>
+      {/* Header - pl-(--macos-traffic-light-width) accounts for macOS traffic light buttons */}
+      <div className="flex items-center justify-between border-b pl-(--macos-traffic-light-width) pr-4" style={{ height: `${dragRegionHeight}px` }}>
+        <h3 className="font-semibold text-base">Streams</h3>
         <div className="flex items-center gap-1">
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8 text-muted-foreground hover:text-foreground"
+            onClick={handleDailyStream}
+            title="Daily Stream"
+          >
+            <Calendar className="h-4 w-4" />
+          </Button>
           <Dialog open={isNewStreamOpen} onOpenChange={(open) => {
             if (open) devLog.openDialog('New Stream');
             else devLog.closeDialog('New Stream');
