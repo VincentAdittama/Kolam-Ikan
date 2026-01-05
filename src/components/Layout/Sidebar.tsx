@@ -18,6 +18,12 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import {
+  ContextMenu,
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuTrigger,
+} from '@/components/ui/context-menu';
+import {
   Dialog,
   DialogContent,
   DialogDescription,
@@ -286,84 +292,122 @@ export function Sidebar() {
       <ScrollArea className="flex-1">
         <div className="space-y-1 p-2">
           {streams.map((stream) => (
-            <div
-              key={stream.id}
-              className={cn(
-                'group flex items-center justify-between rounded-md px-3 py-2 cursor-pointer transition-colors',
-                activeStreamId === stream.id
-                  ? 'bg-accent text-accent-foreground'
-                  : 'hover:bg-accent/50'
-              )}
-              onClick={() => {
-                devLog.selectStream(stream.id, stream.title);
-                setActiveStreamId(stream.id);
-              }}
-            >
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2">
-                  {stream.pinned && (
-                    <Pin className="h-3 w-3 text-muted-foreground" />
+            <ContextMenu key={stream.id}>
+              <ContextMenuTrigger asChild>
+                <div
+                  className={cn(
+                    'group flex items-center justify-between rounded-md px-3 py-2 cursor-pointer transition-colors',
+                    activeStreamId === stream.id
+                      ? 'bg-accent text-accent-foreground'
+                      : 'hover:bg-accent/50'
                   )}
-                  <span className="font-medium truncate">{stream.title}</span>
-                </div>
-                <div className="flex items-center gap-2 text-xs text-muted-foreground mt-0.5">
-                  <span>{stream.entryCount} entries</span>
-                  <span>•</span>
-                  <span>{formatRelativeTime(stream.lastUpdated)}</span>
-                </div>
-              </div>
+                  onClick={() => {
+                    devLog.selectStream(stream.id, stream.title);
+                    setActiveStreamId(stream.id);
+                  }}
+                  onContextMenu={() => {
+                    devLog.openMenu('Stream Options (Context)', { streamId: stream.id, streamTitle: stream.title });
+                  }}
+                >
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      {stream.pinned && (
+                        <Pin className="h-3 w-3 text-muted-foreground" />
+                      )}
+                      <span className="font-medium truncate">{stream.title}</span>
+                    </div>
+                    <div className="flex items-center gap-2 text-xs text-muted-foreground mt-0.5">
+                      <span>{stream.entryCount} entries</span>
+                      <span>•</span>
+                      <span>{formatRelativeTime(stream.lastUpdated)}</span>
+                    </div>
+                  </div>
 
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-6 w-6 opacity-0 group-hover:opacity-100"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      devLog.openMenu('Stream Options', { streamId: stream.id, streamTitle: stream.title });
-                    }}
-                  >
-                    <MoreVertical className="h-4 w-4" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
-                  <DropdownMenuItem
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      devLog.menuAction('Stream Options', stream.pinned ? 'Unpin' : 'Pin', { streamId: stream.id });
-                      handlePinStream(stream.id, stream.pinned);
-                    }}
-                  >
-                    <Pin className="mr-2 h-4 w-4" />
-                    {stream.pinned ? 'Unpin' : 'Pin'}
-                  </DropdownMenuItem>
-                  <DropdownMenuItem
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      devLog.menuAction('Stream Options', 'Rename', { streamId: stream.id });
-                      setEditingStreamId(stream.id);
-                      setRenameTitle(stream.title);
-                      setIsRenameOpen(true);
-                    }}
-                  >
-                    <Edit2 className="mr-2 h-4 w-4" />
-                    Rename
-                  </DropdownMenuItem>
-                  <DropdownMenuItem
-                    className="text-destructive"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      devLog.menuAction('Stream Options', 'Delete', { streamId: stream.id });
-                      handleDeleteStream(stream.id);
-                    }}
-                  >
-                    <Trash2 className="mr-2 h-4 w-4" />
-                    Delete
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            </div>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-6 w-6 opacity-0 group-hover:opacity-100"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          devLog.openMenu('Stream Options', { streamId: stream.id, streamTitle: stream.title });
+                        }}
+                      >
+                        <MoreVertical className="h-4 w-4" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuItem
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          devLog.menuAction('Stream Options', stream.pinned ? 'Unpin' : 'Pin', { streamId: stream.id });
+                          handlePinStream(stream.id, stream.pinned);
+                        }}
+                      >
+                        <Pin className="mr-2 h-4 w-4" />
+                        {stream.pinned ? 'Unpin' : 'Pin'}
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          devLog.menuAction('Stream Options', 'Rename', { streamId: stream.id });
+                          setEditingStreamId(stream.id);
+                          setRenameTitle(stream.title);
+                          setIsRenameOpen(true);
+                        }}
+                      >
+                        <Edit2 className="mr-2 h-4 w-4" />
+                        Rename
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        className="text-destructive"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          devLog.menuAction('Stream Options', 'Delete', { streamId: stream.id });
+                          handleDeleteStream(stream.id);
+                        }}
+                      >
+                        <Trash2 className="mr-2 h-4 w-4" />
+                        Delete
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </div>
+              </ContextMenuTrigger>
+              <ContextMenuContent>
+                <ContextMenuItem
+                  onClick={() => {
+                    devLog.menuAction('Stream Options (Context)', stream.pinned ? 'Unpin' : 'Pin', { streamId: stream.id });
+                    handlePinStream(stream.id, stream.pinned);
+                  }}
+                >
+                  <Pin className="mr-2 h-4 w-4" />
+                  {stream.pinned ? 'Unpin' : 'Pin'}
+                </ContextMenuItem>
+                <ContextMenuItem
+                  onClick={() => {
+                    devLog.menuAction('Stream Options (Context)', 'Rename', { streamId: stream.id });
+                    setEditingStreamId(stream.id);
+                    setRenameTitle(stream.title);
+                    setIsRenameOpen(true);
+                  }}
+                >
+                  <Edit2 className="mr-2 h-4 w-4" />
+                  Rename
+                </ContextMenuItem>
+                <ContextMenuItem
+                  className="text-destructive"
+                  onClick={() => {
+                    devLog.menuAction('Stream Options (Context)', 'Delete', { streamId: stream.id });
+                    handleDeleteStream(stream.id);
+                  }}
+                >
+                  <Trash2 className="mr-2 h-4 w-4" />
+                  Delete
+                </ContextMenuItem>
+              </ContextMenuContent>
+            </ContextMenu>
           ))}
         </div>
       </ScrollArea>

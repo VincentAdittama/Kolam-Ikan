@@ -29,7 +29,11 @@ if (import.meta.env.DEV) {
   window.addEventListener('click', (e) => {
     // Use composedPath to handle Shadow DOM (LocatorJS uses Shadow DOM)
     const path = e.composedPath();
-    console.log('[LocatorJS Debug] Click detected. Path:', path.map(el => (el as any).tagName || (el as any).constructor.name));
+    console.log('[LocatorJS Debug] Click detected. Path:', path.map(el => {
+      if (el instanceof HTMLElement) return el.tagName;
+      if (el instanceof Element) return el.tagName;
+      return (el as { constructor: { name: string } }).constructor.name;
+    }));
 
     // Find the anchor element in the path
     const target = path.find(el => {
