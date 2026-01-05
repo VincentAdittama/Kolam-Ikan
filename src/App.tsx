@@ -1,4 +1,5 @@
-import { useEffect } from 'react';
+import { useEffect, useCallback } from 'react';
+import { getCurrentWindow } from '@tauri-apps/api/window';
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { Sidebar } from "@/components/Layout/Sidebar";
@@ -8,9 +9,11 @@ import { useAppStore } from "@/store/appStore";
 import { useProfiles, useDefaultProfile } from "@/hooks/useQueries";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-import { PanelLeft, PanelRight } from "lucide-react";
+import { PanelRight } from "lucide-react";
 import "./App.css";
 import 'tippy.js/dist/tippy.css';
+
+const DRAG_REGION_HEIGHT = 53; // px - matches macOS traffic light area
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -22,11 +25,30 @@ const queryClient = new QueryClient({
 });
 
 function AppLayout() {
-  const { sidebarVisible, rightPanelVisible, theme, toggleSidebar, toggleRightPanel } = useAppStore();
+  const { sidebarVisible, rightPanelVisible, theme, toggleRightPanel } = useAppStore();
   
   // Load profiles on app startup
   useProfiles();
   useDefaultProfile();
+
+  // ══════════════════════════════════════════════════════════════════════
+  // SMART WINDOW DRAG - Only drag when clicking empty space in header area
+  // ══════════════════════════════════════════════════════════════════════
+  // This allows clicks on buttons, inputs, etc. to work normally while
+  // still enabling window dragging from empty header space.
+  const handleMouseDown = useCallback((e: React.MouseEvent) => {
+    // Only trigger in the drag region height
+    if (e.clientY > DRAG_REGION_HEIGHT) return;
+    
+    // Don't drag if clicking on interactive elements
+    const target = e.target as HTMLElement;
+    const interactiveSelector = 'button, a, input, textarea, select, [role="button"], [role="menuitem"], [data-no-drag]';
+    if (target.closest(interactiveSelector)) return;
+    
+    // Start native window drag
+    e.preventDefault();
+    getCurrentWindow().startDragging();
+  }, []);
 
   useEffect(() => {
     const root = window.document.documentElement;
@@ -55,7 +77,10 @@ function AppLayout() {
   }, [theme]);
 
   return (
-    <div className="flex h-screen w-full overflow-hidden bg-background text-foreground">
+    <div 
+      className="flex h-screen w-full overflow-hidden bg-background text-foreground relative"
+      onMouseDown={handleMouseDown}
+    >
       {/* Sidebar */}
       <div
         className={cn(
