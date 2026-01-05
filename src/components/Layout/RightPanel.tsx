@@ -100,6 +100,7 @@ export function RightPanel() {
     setActiveProfileId,
     dragRegionHeight,
     toggleRightPanel,
+    user,
   } = useAppStore();
 
   const { refetchStreams } = useStreamRefetch();
@@ -176,6 +177,7 @@ export function RightPanel() {
         bridgeKey: bridgeExport.bridgeKey,
       });
       const pending = await api.createPendingBlock(
+        user?.id || "local_user",
         activeStreamId,
         bridgeExport.bridgeKey,
         bridgeExport.stagedEntryIds,
@@ -349,6 +351,7 @@ export function RightPanel() {
         parentContextIds: pendingBlock.stagedContextIds,
       });
       const newEntry = await api.createEntry({
+        userId: user?.id || "local_user",
         streamId: activeStreamId,
         role: "ai",
         content: prosemirrorContent,

@@ -19,6 +19,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { useCreateProfile, useUpdateProfile } from '@/hooks/useQueries';
+import { useAppStore } from "@/store/appStore";
 import { PROFILE_COLORS, type Profile, type ProfileRole } from '@/types';
 import { cn } from '@/lib/utils';
 
@@ -45,6 +46,7 @@ export function ProfileFormDialog({
 
   const createProfile = useCreateProfile();
   const updateProfile = useUpdateProfile();
+  const { user } = useAppStore();
 
   const [prevOpen, setPrevOpen] = useState(open);
   const [prevInitialProfile, setPrevInitialProfile] = useState(initialProfile);
@@ -115,6 +117,7 @@ export function ProfileFormDialog({
         };
       } else {
         savedProfile = await createProfile.mutateAsync({
+          userId: user?.id || "local_user",
           name: name.trim(),
           role,
           color,
