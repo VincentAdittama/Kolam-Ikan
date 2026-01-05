@@ -10,6 +10,19 @@
     "core:window:allow-start-dragging",
     "clipboard-manager:allow-read-text",
     "clipboard-manager:allow-write-text",
-    "shell:allow-open"
+    "shell:default",
+    {
+      "identifier": "opener:allow-open-url",
+      "allow": [
+        { "url": "vscode:*" },
+        { "url": "cursor:*" },
+        { "url": "windsurf:*" },
+        { "url": "idea:*" },
+        { "url": "antigravity:*" },
+        { "url": "https:*" },
+        { "url": "mailto:*" },
+        { "url": "tel:*" }
+      ]
+    }
   ]
 }
