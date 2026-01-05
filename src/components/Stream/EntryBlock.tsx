@@ -403,7 +403,10 @@ export function EntryBlock({ entry, isCompact = false }: EntryBlockProps) {
     >
       {/* Entry Header */}
       <div 
-        className="flex items-center justify-between border-b px-4 py-2 cursor-pointer hover:bg-accent/30 transition-colors"
+        className={cn(
+          "flex items-center justify-between px-4 py-2 cursor-pointer hover:bg-accent/30 transition-colors",
+          !isCollapsed && "border-b"
+        )}
         onClick={(e) => {
           // Prevent toggle if clicking on interactive elements
           if ((e.target as HTMLElement).closest('button, [role="checkbox"], [data-state]')) {
@@ -422,12 +425,12 @@ export function EntryBlock({ entry, isCompact = false }: EntryBlockProps) {
       >
         <div className="flex items-center gap-3 min-w-0">
           {/* Staging checkbox (only for user entries) */}
-          {isUser && (
+          {
             <Checkbox
               checked={isStaged}
               onCheckedChange={handleToggleStaging}
             />
-          )}
+          }
 
           {/* Collapse Indicator */}
           <div className="text-muted-foreground">
