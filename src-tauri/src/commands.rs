@@ -609,16 +609,53 @@ pub fn create_entry(db: State<Database>, input: CreateEntryInput) -> Result<Entr
     let now = chrono::Utc::now().timestamp_millis();
     let id = uuid::Uuid::new_v4().to_string();
 
-    // Get next sequence ID
-    let max_seq: i32 = conn
-        .query_row(
-            "SELECT COALESCE(MAX(sequence_id), 0) FROM entries WHERE stream_id = ?1",
-            params![input.stream_id],
-            |row| row.get(0),
-        )
-        .unwrap_or(0);
+    // Determine sequence_id and handle insertion logic
+    let sequence_id = if let Some(after_id) = input.insert_after_id {
+        // Find sequence_id of the target entry
+        let target_seq: i32 = conn
+            .query_row(
+                "SELECT sequence_id FROM entries WHERE id = ?1",
+                params![after_id],
+                |row| row.get(0),
+            )
+            .map_err(|e| e.to_string())?;
 
-    let sequence_id = max_seq + 1;
+        // Shift following entries
+        conn.execute(
+            "UPDATE entries SET sequence_id = sequence_id + 1 WHERE stream_id = ?1 AND sequence_id > ?2",
+            params![input.stream_id, target_seq],
+        ).map_err(|e| e.to_string())?;
+
+        target_seq + 1
+    } else if let Some(before_id) = input.insert_before_id {
+        // Find sequence_id of the target entry
+        let target_seq: i32 = conn
+            .query_row(
+                "SELECT sequence_id FROM entries WHERE id = ?1",
+                params![before_id],
+                |row| row.get(0),
+            )
+            .map_err(|e| e.to_string())?;
+
+        // Shift target and following entries
+        conn.execute(
+            "UPDATE entries SET sequence_id = sequence_id + 1 WHERE stream_id = ?1 AND sequence_id >= ?2",
+            params![input.stream_id, target_seq],
+        ).map_err(|e| e.to_string())?;
+
+        target_seq
+    } else {
+        // Get next sequence ID (append at the end)
+        let max_seq: i32 = conn
+            .query_row(
+                "SELECT COALESCE(MAX(sequence_id), 0) FROM entries WHERE stream_id = ?1",
+                params![input.stream_id],
+                |row| row.get(0),
+            )
+            .unwrap_or(0);
+        max_seq + 1
+    };
+
     let content_str = serde_json::to_string(&input.content).map_err(|e| e.to_string())?;
     let ai_metadata_str = input
         .ai_metadata

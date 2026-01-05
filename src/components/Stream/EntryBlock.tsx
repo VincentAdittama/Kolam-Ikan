@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect, useRef, useCallback } from 'react';
-import { useEditor, EditorContent } from '@tiptap/react';
+import { useEditor, EditorContent, Editor, Extension } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import Underline from '@tiptap/extension-underline';
 import TaskList from '@tiptap/extension-task-list';
@@ -104,6 +104,8 @@ export function EntryBlock({ entry, isCompact = false }: EntryBlockProps) {
     clearAllStaging,
     activeStreamId,
     entries,
+    addEntry,
+    activeProfileId,
   } = useAppStore();
 
   // Get profile for this entry
@@ -140,6 +142,64 @@ export function EntryBlock({ entry, isCompact = false }: EntryBlockProps) {
   const updateEntryProfile = useUpdateEntryProfile();
   const bulkUpdateEntryProfile = useBulkUpdateEntryProfile();
   
+  const [modifiers, setModifiers] = useState({ alt: false, mod: false });
+
+  // Track modifier keys for dynamic hint
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      setModifiers({ alt: e.altKey, mod: e.metaKey || e.ctrlKey });
+    };
+    const handleKeyUp = (e: KeyboardEvent) => {
+      setModifiers({ alt: e.altKey, mod: e.metaKey || e.ctrlKey });
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    window.addEventListener('keyup', handleKeyUp);
+    // Also track window blur to reset modifiers
+    const handleBlur = () => setModifiers({ alt: false, mod: false });
+    window.addEventListener('blur', handleBlur);
+
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('keyup', handleKeyUp);
+      window.removeEventListener('blur', handleBlur);
+    };
+  }, []);
+  
+  // Create entry logic (reusing logic from MainView)
+  const handleCreateEntry = useCallback(async (options: { afterId?: string; beforeId?: string }) => {
+    if (!activeStreamId) return;
+    
+    devLog.action('handleCreateEntry called via shortcut', { ...options, entryId: entry.id });
+
+    const emptyContent = {
+      type: 'doc',
+      content: [
+        {
+          type: 'paragraph',
+          content: [],
+        },
+      ],
+    };
+
+    try {
+      const newEntry = await api.createEntry({
+        streamId: activeStreamId,
+        role: 'user',
+        content: emptyContent,
+        profileId: activeProfileId || undefined,
+        insertAfterId: options.afterId,
+        insertBeforeId: options.beforeId,
+      });
+
+      addEntry(newEntry);
+      setLastCreatedEntryId(newEntry.id);
+      refetchStreams();
+    } catch (error) {
+      devLog.apiError('create_entry', error);
+    }
+  }, [activeStreamId, activeProfileId, addEntry, setLastCreatedEntryId, refetchStreams]);
+  
   // Fetch latest version to check for uncommitted changes
   const { data: latestVersion } = useLatestVersion(entry.id);
 
@@ -174,6 +234,30 @@ export function EntryBlock({ entry, isCompact = false }: EntryBlockProps) {
     return currentText !== latestText;
   }, [latestVersion, entry.content, entry.versionHead]);
 
+  // Reset idle timer and manage hint visibility
+  const resetIdleTimer = useCallback((targetEditor: Editor | null) => {
+    setShowNewLineHint(false);
+    
+    if (idleTimerRef.current) {
+      clearTimeout(idleTimerRef.current);
+    }
+    
+    // Only start idle timer if focused
+    if (isFocused && targetEditor) {
+      const { selection } = targetEditor.state;
+      const { $from } = selection;
+      const currentLineText = $from.parent.textContent;
+      const hasAnyContent = targetEditor.getText().trim().length > 0;
+      
+      // Only show hint if editor has content AND the current line is NOT empty
+      if (hasAnyContent && currentLineText.trim().length > 0) {
+        idleTimerRef.current = setTimeout(() => {
+          setShowNewLineHint(true);
+        }, 1500); // Show hint after 1.5 seconds of inactivity
+      }
+    }
+  }, [isFocused]);
+
   // Debounced save function
   const debouncedSave = useMemo(
     () =>
@@ -190,35 +274,18 @@ export function EntryBlock({ entry, isCompact = false }: EntryBlockProps) {
     [entry.id]
   );
 
-  // Check if content has text
-  const hasContent = useCallback(() => {
-    const text = extractTextFromContent(entry.content);
-    return text.trim().length > 0;
-  }, [entry.content]);
-  
-  // Reset idle timer and manage hint visibility
-  const resetIdleTimer = useCallback(() => {
-    setShowNewLineHint(false);
-    
-    if (idleTimerRef.current) {
-      clearTimeout(idleTimerRef.current);
-    }
-    
-    // Only start idle timer if focused and has content
-    if (isFocused && hasContent()) {
-      idleTimerRef.current = setTimeout(() => {
-        setShowNewLineHint(true);
-      }, 1500); // Show hint after 1.5 seconds of inactivity
-    }
-  }, [isFocused, hasContent]);
+  // Cleanup idle timer on unmount
+  useEffect(() => {
+    return () => {
+      if (idleTimerRef.current) {
+        clearTimeout(idleTimerRef.current);
+      }
+    };
+  }, []);
 
   // Initialize Tiptap editor
   const editor = useEditor({
     extensions: [
-      StarterKit.configure({
-        codeBlock: false,
-        link: false,
-      }),
       Underline,
       TaskList,
       TaskItem.configure({
@@ -253,6 +320,33 @@ export function EntryBlock({ entry, isCompact = false }: EntryBlockProps) {
         },
       }),
       SlashCommand,
+      StarterKit.configure({
+        codeBlock: false,
+        link: false,
+      }),
+      Extension.create({
+        name: 'entryShortcuts',
+        addKeyboardShortcuts() {
+          return {
+            'Alt-Enter': () => {
+              // Option + Enter: insert paragraph above current one
+              const { selection } = this.editor.state;
+              const { $from } = selection;
+              const pos = $from.before();
+              return this.editor
+                .chain()
+                .insertContentAt(pos, { type: 'paragraph' })
+                .focus(pos + 1)
+                .run();
+            },
+            'Mod-Enter': () => {
+              // Cmd + Enter: create new block below
+              handleCreateEntry({ afterId: entry.id });
+              return true;
+            },
+          }
+        }
+      }),
     ],
     content: entry.content,
     onUpdate: ({ editor }) => {
@@ -260,12 +354,12 @@ export function EntryBlock({ entry, isCompact = false }: EntryBlockProps) {
       devLog.editorAction('Content update', { entryId: entry.id, sequenceId: entry.sequenceId });
       updateEntry(entry.id, { content: json });
       debouncedSave(json);
-      resetIdleTimer();
+      resetIdleTimer(editor);
     },
     onFocus: () => {
       devLog.focus(`Entry editor #${entry.sequenceId}`, { entryId: entry.id });
       setIsFocused(true);
-      resetIdleTimer();
+      resetIdleTimer(editor);
     },
     onBlur: () => {
       devLog.blur(`Entry editor #${entry.sequenceId}`, { entryId: entry.id });
@@ -321,14 +415,6 @@ export function EntryBlock({ entry, isCompact = false }: EntryBlockProps) {
     }
   }, [editor, lastCreatedEntryId, entry.id, setLastCreatedEntryId]);
 
-  // Cleanup idle timer on unmount
-  useEffect(() => {
-    return () => {
-      if (idleTimerRef.current) {
-        clearTimeout(idleTimerRef.current);
-      }
-    };
-  }, []);
 
   const handleDelete = async () => {
     devLog.deleteEntry(entry.id, entry.sequenceId);
@@ -707,7 +793,18 @@ export function EntryBlock({ entry, isCompact = false }: EntryBlockProps) {
             )}
           >
             <CornerDownLeft className="h-3 w-3" />
-            <span>Press <kbd className="px-1 py-0.5 mx-0.5 text-[10px] font-medium bg-muted rounded border border-border/50">Enter</kbd> to add a new line</span>
+            <span>
+              Press 
+              {modifiers.alt && (
+                <kbd className="px-1 py-0.5 mx-0.5 text-[10px] font-medium bg-muted rounded border border-border/50">Option</kbd>
+              )}
+              {modifiers.mod && (
+                <kbd className="px-1 py-0.5 mx-0.5 text-[10px] font-medium bg-muted rounded border border-border/50">Cmd</kbd>
+              )}
+              {(modifiers.alt || modifiers.mod) && <span className="mx-0.5">+</span>}
+              <kbd className="px-1 py-0.5 mx-0.5 text-[10px] font-medium bg-muted rounded border border-border/50">Enter</kbd> 
+              {modifiers.alt ? "to add a line above" : modifiers.mod ? "to add a new block below" : "to add a new line"}
+            </span>
           </div>
         </div>
       )}

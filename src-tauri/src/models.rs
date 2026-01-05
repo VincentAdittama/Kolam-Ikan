@@ -151,6 +151,8 @@ pub struct CreateEntryInput {
     pub content: serde_json::Value,
     pub ai_metadata: Option<AiMetadata>,
     pub parent_context_ids: Option<Vec<String>>,
+    pub insert_after_id: Option<String>,
+    pub insert_before_id: Option<String>,
 }
 
 #[allow(dead_code)]

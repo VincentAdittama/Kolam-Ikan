@@ -154,6 +154,8 @@ export interface CreateEntryInput {
   aiMetadata?: AiMetadata;
   /** IDs of entries that were staged/used as context for this entry (for AI responses) */
   parentContextIds?: string[];
+  insertAfterId?: string;
+  insertBeforeId?: string;
 }
 
 export interface UpdateEntryContentInput {
