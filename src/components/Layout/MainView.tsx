@@ -34,6 +34,7 @@ export function MainView() {
     toggleEditorToolbar,
     sidebarVisible,
     toggleSidebar,
+    dragRegionHeight,
   } = useAppStore();
 
   const { refetchStreams } = useStreamRefetch();
@@ -250,16 +251,17 @@ export function MainView() {
       {/* Stream Header */}
       <div 
         className={cn(
-          "border-b px-6 py-4 flex items-start justify-between select-none transition-all duration-300",
+          "border-b px-6 flex items-center justify-between select-none transition-all duration-300",
           !sidebarVisible && "pl-[100px]"
         )}
+        style={{ height: `${dragRegionHeight}px` }}
       >
-        <div className="flex-1 min-w-0 flex items-start gap-3">
+        <div className="flex-1 min-w-0 flex items-center gap-3">
           {!sidebarVisible && (
             <Button
               variant="ghost"
               size="icon"
-              className="h-8 w-8 mt-1 shrink-0 text-muted-foreground hover:text-foreground"
+              className="h-8 w-8 shrink-0 text-muted-foreground hover:text-foreground"
               onClick={toggleSidebar}
               title="Show Sidebar"
             >
@@ -288,12 +290,12 @@ export function MainView() {
                     setIsEditingTitle(false);
                 }
                 }}
-                className="text-2xl font-bold h-auto py-0 px-0 border-none focus-visible:ring-0"
+                className="text-lg font-bold h-auto py-0 px-0 border-none focus-visible:ring-0 leading-tight"
                 autoFocus
             />
             ) : (
             <h1 
-                className="text-2xl font-bold cursor-pointer hover:bg-accent/50 rounded px-1 -ml-1 transition-colors truncate"
+                className="text-lg font-bold cursor-pointer hover:bg-accent/50 rounded px-1 -ml-1 transition-colors truncate leading-tight"
                 onClick={() => {
                 setEditTitle(currentStream.title);
                 setIsEditingTitle(true);
@@ -324,15 +326,15 @@ export function MainView() {
                     setIsEditingDescription(false);
                 }
                 }}
-                className="text-muted-foreground mt-1 h-auto py-0 px-0 border-none focus-visible:ring-0"
+                className="text-muted-foreground -mt-0.5 text-xs h-auto py-0 px-0 border-none focus-visible:ring-0 leading-tight"
                 placeholder="Add a description..."
                 autoFocus
             />
             ) : (
             <p 
                 className={cn(
-                "text-muted-foreground mt-1 cursor-pointer hover:bg-accent/50 rounded px-1 -ml-1 transition-colors min-h-[1.5em] truncate",
-                !currentStream.description && "text-muted-foreground/50 italic text-sm"
+                "text-muted-foreground -mt-0.5 text-xs cursor-pointer hover:bg-accent/50 rounded px-1 -ml-1 transition-colors truncate leading-tight",
+                !currentStream.description && "text-muted-foreground/50 italic"
                 )}
                 onClick={() => {
                 setEditDescription(currentStream.description || '');

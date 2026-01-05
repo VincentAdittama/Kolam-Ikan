@@ -42,6 +42,7 @@ export function Sidebar() {
     setEntries,
     setLoadingEntries,
     toggleSidebar,
+    dragRegionHeight,
   } = useAppStore();
 
   const [isNewStreamOpen, setIsNewStreamOpen] = React.useState(false);
@@ -171,7 +172,7 @@ export function Sidebar() {
   return (
     <div className="flex h-full w-[280px] flex-col border-r bg-muted/30">
       {/* Header - pl-[100px] accounts for macOS traffic light buttons */}
-      <div className="flex items-center justify-between border-b pl-[100px] pr-4 py-2.5">
+      <div className="flex items-center justify-between border-b pl-[100px] pr-4" style={{ height: `${dragRegionHeight}px` }}>
         <h2 className="font-semibold text-lg">Streams</h2>
         <div className="flex items-center gap-1">
           <Dialog open={isNewStreamOpen} onOpenChange={(open) => {

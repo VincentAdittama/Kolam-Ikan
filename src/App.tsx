@@ -1,5 +1,6 @@
 import { useEffect, useCallback } from 'react';
 import { getCurrentWindow } from '@tauri-apps/api/window';
+import { platform } from '@tauri-apps/plugin-os';
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { Sidebar } from "@/components/Layout/Sidebar";
@@ -13,8 +14,6 @@ import { PanelRight } from "lucide-react";
 import "./App.css";
 import 'tippy.js/dist/tippy.css';
 
-const DRAG_REGION_HEIGHT = 53; // px - matches macOS traffic light area
-
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
@@ -25,11 +24,24 @@ const queryClient = new QueryClient({
 });
 
 function AppLayout() {
-  const { sidebarVisible, rightPanelVisible, theme, toggleRightPanel } = useAppStore();
+  const { sidebarVisible, rightPanelVisible, theme, toggleRightPanel, setDragRegionHeight, dragRegionHeight } = useAppStore();
   
   // Load profiles on app startup
   useProfiles();
   useDefaultProfile();
+
+  // Set drag region height based on OS
+  useEffect(() => {
+    try {
+      const os = platform();
+      const height = os === 'macos' ? 53 : 32;
+      setDragRegionHeight(height);
+    } catch (error) {
+      // Fallback for development or when plugin is not available
+      console.warn('Failed to detect OS, using default height:', error);
+      setDragRegionHeight(53); // Default to macOS height
+    }
+  }, [setDragRegionHeight]);
 
   // ══════════════════════════════════════════════════════════════════════
   // SMART WINDOW DRAG - Only drag when clicking empty space in header area
@@ -38,7 +50,7 @@ function AppLayout() {
   // still enabling window dragging from empty header space.
   const handleMouseDown = useCallback((e: React.MouseEvent) => {
     // Only trigger in the drag region height
-    if (e.clientY > DRAG_REGION_HEIGHT) return;
+    if (e.clientY > dragRegionHeight) return;
     
     // Don't drag if clicking on interactive elements
     const target = e.target as HTMLElement;
@@ -48,7 +60,7 @@ function AppLayout() {
     // Start native window drag
     e.preventDefault();
     getCurrentWindow().startDragging();
-  }, []);
+  }, [dragRegionHeight]);
 
   useEffect(() => {
     const root = window.document.documentElement;

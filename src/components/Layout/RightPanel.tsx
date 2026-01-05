@@ -98,6 +98,7 @@ export function RightPanel() {
     setPendingBlock,
     pendingBlock,
     setActiveProfileId,
+    dragRegionHeight,
   } = useAppStore();
 
   const { refetchStreams } = useStreamRefetch();
@@ -386,11 +387,11 @@ export function RightPanel() {
   return (
     <div className="flex h-full w-[320px] flex-col border-l bg-muted/30 overflow-hidden">
       {/* Tab Navigation - Sticky Header */}
-      <div className="sticky top-0 z-20 flex border-b bg-background/80 backdrop-blur-md">
+      <div className="sticky top-0 z-20 flex border-b bg-background/80 backdrop-blur-md" style={{ height: `${dragRegionHeight}px` }}>
         <button
           onClick={() => setActiveTab("context")}
           className={cn(
-            "flex-1 flex items-center justify-center gap-2 px-4 py-3 text-sm font-medium transition-colors border-b-2",
+            "flex-1 flex items-center justify-center gap-2 px-4 text-sm font-medium transition-colors border-b-2",
             activeTab === "context"
               ? "border-primary text-primary"
               : "border-transparent text-muted-foreground hover:text-foreground"
@@ -402,7 +403,7 @@ export function RightPanel() {
         <button
           onClick={() => setActiveTab("branches")}
           className={cn(
-            "flex-1 flex items-center justify-center gap-2 px-4 py-3 text-sm font-medium transition-colors border-b-2",
+            "flex-1 flex items-center justify-center gap-2 px-4 text-sm font-medium transition-colors border-b-2",
             activeTab === "branches"
               ? "border-primary text-primary"
               : "border-transparent text-muted-foreground hover:text-foreground"

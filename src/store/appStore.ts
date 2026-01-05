@@ -19,6 +19,7 @@ interface AppState {
   rightPanelVisible: boolean;
   theme: "light" | "dark" | "system";
   showEditorToolbar: boolean;
+  dragRegionHeight: number;
 
   // Profile State
   profiles: Profile[];
@@ -52,6 +53,7 @@ interface AppState {
   toggleSidebar: () => void;
   toggleRightPanel: () => void;
   setTheme: (theme: "light" | "dark" | "system") => void;
+  setDragRegionHeight: (height: number) => void;
   toggleEditorToolbar: () => void;
 
   setStreams: (streams: StreamMetadata[]) => void;
@@ -97,6 +99,7 @@ export const useAppStore = create<AppState>((set) => ({
   rightPanelVisible: true,
   theme: "system",
   showEditorToolbar: true,
+  dragRegionHeight: 53,
 
   // Initial Profile State
   profiles: [],
@@ -151,6 +154,10 @@ export const useAppStore = create<AppState>((set) => ({
   setTheme: (theme) => {
     devLog.action("Store: setTheme", { theme });
     set({ theme });
+  },
+  setDragRegionHeight: (height) => {
+    devLog.action("Store: setDragRegionHeight", { height });
+    set({ dragRegionHeight: height });
   },
   toggleEditorToolbar: () =>
     set((state) => {
