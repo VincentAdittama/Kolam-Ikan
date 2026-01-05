@@ -133,11 +133,18 @@ function AppLayout() {
       {/* Sidebar */}
       <div
         className={cn(
-          "transition-all duration-300 relative shrink-0",
-          sidebarVisible ? "w-[280px]" : "w-0 overflow-hidden"
+          "relative shrink-0 overflow-hidden transition-[width] duration-300 ease-in-out",
+          sidebarVisible ? "w-[280px]" : "w-0"
         )}
       >
-        <Sidebar />
+        <div 
+          className={cn(
+            "h-full w-[280px] transition-transform duration-300 ease-in-out",
+            sidebarVisible ? "translate-x-0" : "-translate-x-full"
+          )}
+        >
+          <Sidebar />
+        </div>
       </div>
 
       {/* Main View */}
@@ -146,11 +153,18 @@ function AppLayout() {
       {/* Right Panel */}
       <div
         className={cn(
-          "transition-all duration-300 relative shrink-0",
-          rightPanelVisible ? "w-[320px]" : "w-0 overflow-hidden"
+          "relative shrink-0 overflow-hidden transition-[width] duration-300 ease-in-out",
+          rightPanelVisible ? "w-[320px]" : "w-0"
         )}
       >
-        <RightPanel />
+        <div
+          className={cn(
+            "h-full w-[320px] transition-transform duration-300 ease-in-out border-l",
+            rightPanelVisible ? "translate-x-0" : "translate-x-full"
+          )}
+        >
+          <RightPanel />
+        </div>
       </div>
     </div>
   );
