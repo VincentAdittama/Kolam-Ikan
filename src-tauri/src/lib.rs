@@ -1,9 +1,78 @@
+// Suppress deprecation warnings for cocoa/objc crates (migration to objc2 is a larger task)
+// Suppress unexpected_cfgs from objc macro (uses legacy cfg conditions)
+#![allow(deprecated, unexpected_cfgs)]
+
 mod commands;
 mod database;
 mod models;
 
 use database::Database;
 use tauri::Manager;
+
+// macOS-specific imports for traffic light button repositioning
+// Note: cocoa/objc crates are deprecated in favor of objc2, but still functional
+#[cfg(target_os = "macos")]
+#[allow(deprecated)]
+use cocoa::appkit::{NSWindow, NSWindowButton};
+#[cfg(target_os = "macos")]
+#[allow(deprecated)]
+use cocoa::base::id;
+#[cfg(target_os = "macos")]
+#[allow(deprecated)]
+use cocoa::foundation::NSRect;
+#[cfg(target_os = "macos")]
+use objc::{msg_send, sel, sel_impl};
+
+/// Repositions macOS traffic light buttons (close, minimize, zoom)
+/// to the specified x, y coordinates from the top-left of the window
+#[cfg(target_os = "macos")]
+#[allow(deprecated)]
+unsafe fn reposition_traffic_lights(ns_window: id, x: f64, y: f64) {
+    // Get the content view to calculate proper positioning
+    let content_view: id = msg_send![ns_window, contentView];
+    let _content_frame: NSRect = msg_send![content_view, frame];
+
+    // Buttons: Close, Minimize, Zoom
+    let buttons = [
+        NSWindowButton::NSWindowCloseButton,
+        NSWindowButton::NSWindowMiniaturizeButton,
+        NSWindowButton::NSWindowZoomButton,
+    ];
+
+    for (i, button_type) in buttons.iter().enumerate() {
+        let button: id = ns_window.standardWindowButton_(*button_type);
+        if button != cocoa::base::nil {
+            // Get the button's superview (the title bar container)
+            let superview: id = msg_send![button, superview];
+            if superview != cocoa::base::nil {
+                let superview_frame: NSRect = msg_send![superview, frame];
+                let button_frame: NSRect = msg_send![button, frame];
+
+                // Calculate new position
+                // X: base offset + spacing between buttons (each button ~20px apart)
+                let new_x = x + (i as f64 * 20.0);
+                // Y: position from top (macOS coordinate system is bottom-up)
+                let new_y = superview_frame.size.height - y - button_frame.size.height;
+
+                let new_frame = NSRect::new(
+                    cocoa::foundation::NSPoint::new(new_x, new_y),
+                    button_frame.size,
+                );
+                let _: () = msg_send![button, setFrame: new_frame];
+            }
+        }
+    }
+}
+
+/// Sets up a window delegate to handle resize events and reposition traffic lights
+#[cfg(target_os = "macos")]
+#[allow(deprecated)]
+unsafe fn setup_traffic_light_observer(ns_window: id, x: f64, y: f64) {
+    // For now, we'll just reposition on initial setup
+    // A full implementation would require creating a proper NSWindowDelegate
+    // which is complex and can cause issues with Tauri's existing delegate
+    reposition_traffic_lights(ns_window, x, y);
+}
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -35,6 +104,22 @@ pub fn run() {
 
             // Manage database state
             app.manage(db);
+
+            // Reposition macOS traffic light buttons
+            #[cfg(target_os = "macos")]
+            {
+                let window = app.get_webview_window("main");
+                if let Some(window) = window {
+                    // Use raw window handle to get NSWindow
+                    if let Ok(ns_window) = window.ns_window() {
+                        unsafe {
+                            // Position traffic lights at (20, 20) from top-left
+                            // Similar to Obsidian's trafficLightPosition
+                            setup_traffic_light_observer(ns_window as id, 20.0, 20.0);
+                        }
+                    }
+                }
+            }
 
             Ok(())
         })

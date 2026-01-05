@@ -7,6 +7,7 @@ import {
   Trash2,
   Edit2,
   HelpCircle,
+  PanelLeft,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -40,6 +41,7 @@ export function Sidebar() {
     setCurrentStream,
     setEntries,
     setLoadingEntries,
+    toggleSidebar,
   } = useAppStore();
 
   const [isNewStreamOpen, setIsNewStreamOpen] = React.useState(false);
@@ -168,60 +170,74 @@ export function Sidebar() {
 
   return (
     <div className="flex h-full w-[280px] flex-col border-r bg-muted/30">
-      {/* Header */}
-      <div className="flex items-center justify-between border-b px-4 py-3">
+      {/* Header - pl-[100px] accounts for macOS traffic light buttons */}
+      <div className="flex items-center justify-between border-b pl-[100px] pr-4 py-2.5">
         <h2 className="font-semibold text-lg">Streams</h2>
-        <Dialog open={isNewStreamOpen} onOpenChange={(open) => {
-          if (open) devLog.openDialog('New Stream');
-          else devLog.closeDialog('New Stream');
-          setIsNewStreamOpen(open);
-        }}>
-          <DialogTrigger asChild>
-            <Button 
-              variant="ghost" 
-              size="icon" 
-              className="h-8 w-8"
-              onClick={() => devLog.click('New Stream Button (Plus)')}
-            >
-              <Plus className="h-4 w-4" />
-            </Button>
-          </DialogTrigger>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Create New Stream</DialogTitle>
-              <DialogDescription>
-                Start a new stream of thoughts. Give it a meaningful name.
-              </DialogDescription>
-            </DialogHeader>
-            <div className="py-4">
-              <Input
-                placeholder="Stream title..."
-                value={newStreamTitle}
-                onChange={(e) => setNewStreamTitle(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') {
-                    devLog.shortcut('Enter', 'Create stream from dialog');
-                    handleCreateStream();
-                  }
-                }}
-                onFocus={() => devLog.focus('New Stream Title Input')}
-                onBlur={() => devLog.blur('New Stream Title Input')}
-              />
-            </div>
-            <DialogFooter>
-              <Button variant="outline" onClick={() => {
-                devLog.click('Cancel New Stream Button');
-                setIsNewStreamOpen(false);
-              }}>
-                Cancel
+        <div className="flex items-center gap-1">
+          <Dialog open={isNewStreamOpen} onOpenChange={(open) => {
+            if (open) devLog.openDialog('New Stream');
+            else devLog.closeDialog('New Stream');
+            setIsNewStreamOpen(open);
+          }}>
+            <DialogTrigger asChild>
+              <Button 
+                variant="ghost" 
+                size="icon" 
+                className="h-8 w-8 text-muted-foreground hover:text-foreground"
+                onClick={() => devLog.click('New Stream Button (Plus)')}
+                title="New Stream"
+              >
+                <Plus className="h-4 w-4" />
               </Button>
-              <Button onClick={() => {
-                devLog.click('Create Stream Button', { title: newStreamTitle });
-                handleCreateStream();
-              }}>Create</Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
+            </DialogTrigger>
+            <DialogContent>
+              {/* ... dialog content remains the same ... */}
+              <DialogHeader>
+                <DialogTitle>Create New Stream</DialogTitle>
+                <DialogDescription>
+                  Start a new stream of thoughts. Give it a meaningful name.
+                </DialogDescription>
+              </DialogHeader>
+              <div className="py-4">
+                <Input
+                  placeholder="Stream title..."
+                  value={newStreamTitle}
+                  onChange={(e) => setNewStreamTitle(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      devLog.shortcut('Enter', 'Create stream from dialog');
+                      handleCreateStream();
+                    }
+                  }}
+                  onFocus={() => devLog.focus('New Stream Title Input')}
+                  onBlur={() => devLog.blur('New Stream Title Input')}
+                />
+              </div>
+              <DialogFooter>
+                <Button variant="outline" onClick={() => {
+                  devLog.click('Cancel New Stream Button');
+                  setIsNewStreamOpen(false);
+                }}>
+                  Cancel
+                </Button>
+                <Button onClick={() => {
+                  devLog.click('Create Stream Button', { title: newStreamTitle });
+                  handleCreateStream();
+                }}>Create</Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8 text-muted-foreground hover:text-foreground"
+            onClick={toggleSidebar}
+            title="Hide Sidebar"
+          >
+            <PanelLeft className="h-4 w-4" />
+          </Button>
+        </div>
 
         {/* Rename Stream Dialog */}
         <Dialog open={isRenameOpen} onOpenChange={(open) => {

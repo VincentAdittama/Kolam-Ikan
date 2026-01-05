@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react';
-import { Plus, LayoutGrid, List, Settings2 } from 'lucide-react';
+import { Plus, LayoutGrid, List, Settings2, PanelLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -32,6 +32,8 @@ export function MainView() {
     setStagedEntryIds,
     showEditorToolbar,
     toggleEditorToolbar,
+    sidebarVisible,
+    toggleSidebar,
   } = useAppStore();
 
   const { refetchStreams } = useStreamRefetch();
@@ -235,14 +237,31 @@ export function MainView() {
   return (
     <div 
       ref={mainContainerRef}
-      className="flex h-full flex-1 flex-col relative"
+      className="flex h-full flex-1 flex-col relative min-w-0"
       onMouseDown={handleMouseDown}
       onMouseMove={handleMouseMove}
       onMouseUp={handleMouseUp}
     >
       {/* Stream Header */}
-      <div className="border-b px-6 py-4 flex items-start justify-between select-none">
-        <div className="flex-1">
+      <div 
+        className={cn(
+          "border-b px-6 py-4 flex items-start justify-between select-none transition-all duration-300",
+          !sidebarVisible && "pl-[100px]"
+        )}
+      >
+        <div className="flex-1 min-w-0 flex items-start gap-3">
+          {!sidebarVisible && (
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8 mt-1 shrink-0 text-muted-foreground hover:text-foreground"
+              onClick={toggleSidebar}
+              title="Show Sidebar"
+            >
+              <PanelLeft className="h-4 w-4" />
+            </Button>
+          )}
+          <div className="flex-1 min-w-0">
             {isEditingTitle ? (
             <Input
                 value={editTitle}
@@ -269,7 +288,7 @@ export function MainView() {
             />
             ) : (
             <h1 
-                className="text-2xl font-bold cursor-pointer hover:bg-accent/50 rounded px-1 -ml-1 transition-colors"
+                className="text-2xl font-bold cursor-pointer hover:bg-accent/50 rounded px-1 -ml-1 transition-colors truncate"
                 onClick={() => {
                 setEditTitle(currentStream.title);
                 setIsEditingTitle(true);
@@ -307,7 +326,7 @@ export function MainView() {
             ) : (
             <p 
                 className={cn(
-                "text-muted-foreground mt-1 cursor-pointer hover:bg-accent/50 rounded px-1 -ml-1 transition-colors min-h-[1.5em]",
+                "text-muted-foreground mt-1 cursor-pointer hover:bg-accent/50 rounded px-1 -ml-1 transition-colors min-h-[1.5em] truncate",
                 !currentStream.description && "text-muted-foreground/50 italic text-sm"
                 )}
                 onClick={() => {
@@ -317,8 +336,9 @@ export function MainView() {
             >
                 {currentStream.description || 'Add a description...'}
             </p>
-            )}
+          )}
         </div>
+      </div>
         
         
         <div className="flex items-center">

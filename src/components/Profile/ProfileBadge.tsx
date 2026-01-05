@@ -63,8 +63,8 @@ export function ProfileBadge({
           </div>
           
           {showName && (
-            <div className="flex flex-col">
-              <span className="text-sm font-medium leading-tight">
+            <div className="flex flex-col min-w-0">
+              <span className="text-sm font-medium leading-tight truncate">
                 {profile.name}
               </span>
               {showRole && (

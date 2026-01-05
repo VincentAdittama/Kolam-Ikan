@@ -420,7 +420,7 @@ export function EntryBlock({ entry, isCompact = false }: EntryBlockProps) {
           }
         }}
       >
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 min-w-0">
           {/* Staging checkbox (only for user entries) */}
           {isUser && (
             <Checkbox
@@ -438,7 +438,7 @@ export function EntryBlock({ entry, isCompact = false }: EntryBlockProps) {
           {isUser ? (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <button className="flex items-center gap-2 hover:opacity-80 transition-opacity cursor-pointer">
+                <button className="flex items-center gap-2 hover:opacity-80 transition-opacity cursor-pointer min-w-0">
                   {entryProfile ? (
                     <ProfileBadge profile={entryProfile} size="md" showName showRole />
                   ) : (
@@ -532,7 +532,7 @@ export function EntryBlock({ entry, isCompact = false }: EntryBlockProps) {
           {/* AI Model badge (for AI entries with metadata) */}
           {!isUser && entry.aiMetadata && (
             <span 
-              className="inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider shadow-sm"
+              className="inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider shadow-sm max-w-[120px]"
               style={{ 
                 backgroundColor: getAIProviderColor(entry.aiMetadata.provider),
                 color: entry.aiMetadata.provider === 'xai' || entry.aiMetadata.provider === 'other' ? '#000' : '#fff',
@@ -545,7 +545,7 @@ export function EntryBlock({ entry, isCompact = false }: EntryBlockProps) {
                 className="h-3 w-3"
                 style={{ filter: entry.aiMetadata.provider === 'xai' || entry.aiMetadata.provider === 'other' ? 'none' : 'brightness(0)' }}
               />
-              {entry.aiMetadata.model}
+              <span className="truncate">{entry.aiMetadata.model}</span>
             </span>
           )}
 
