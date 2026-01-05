@@ -800,6 +800,21 @@ pub fn delete_entry(db: State<Database>, entry_id: String) -> Result<(), String>
 }
 
 #[tauri::command]
+pub fn bulk_delete_entries(db: State<Database>, entry_ids: Vec<String>) -> Result<(), String> {
+    let mut conn = db.conn.lock().map_err(|e| e.to_string())?;
+    let tx = conn.transaction().map_err(|e| e.to_string())?;
+
+    for entry_id in entry_ids {
+        tx.execute("DELETE FROM entries WHERE id = ?1", params![entry_id])
+            .map_err(|e| e.to_string())?;
+    }
+
+    tx.commit().map_err(|e| e.to_string())?;
+
+    Ok(())
+}
+
+#[tauri::command]
 pub fn get_staged_entries(db: State<Database>, stream_id: String) -> Result<Vec<Entry>, String> {
     let conn = db.conn.lock().map_err(|e| e.to_string())?;
 

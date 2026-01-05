@@ -155,6 +155,10 @@ export async function deleteEntry(entryId: string): Promise<void> {
   return invokeWithLogging("delete_entry", { entryId });
 }
 
+export async function bulkDeleteEntries(entryIds: string[]): Promise<void> {
+  return invokeWithLogging("bulk_delete_entries", { entryIds });
+}
+
 export async function getStagedEntries(streamId: string): Promise<Entry[]> {
   return invokeWithLogging("get_staged_entries", { streamId });
 }

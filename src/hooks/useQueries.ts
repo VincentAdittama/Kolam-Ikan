@@ -320,6 +320,30 @@ export function useDeleteEntry() {
   });
 }
 
+export function useBulkDeleteEntries() {
+  const queryClient = useQueryClient();
+  const { removeEntry, activeStreamId, clearAllStaging } = useAppStore();
+
+  return useMutation({
+    mutationFn: (entryIds: string[]) => api.bulkDeleteEntries(entryIds),
+    onSuccess: async (_, entryIds) => {
+      // Optimistically remove all entries from the store
+      entryIds.forEach((entryId) => {
+        removeEntry(entryId);
+      });
+
+      // Clear all staging since the entries are gone
+      clearAllStaging();
+
+      if (activeStreamId) {
+        await queryClient.invalidateQueries({
+          queryKey: ["stream", activeStreamId],
+        });
+      }
+    },
+  });
+}
+
 export function useToggleStaging() {
   const { toggleStaging } = useAppStore();
 

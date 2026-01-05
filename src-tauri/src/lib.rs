@@ -146,6 +146,7 @@ pub fn run() {
             commands::bulk_update_entry_profile,
             commands::toggle_entry_staging,
             commands::delete_entry,
+            commands::bulk_delete_entries,
             commands::get_staged_entries,
             commands::clear_all_staging,
             // Version commands

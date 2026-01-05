@@ -1,5 +1,5 @@
-import { useMemo } from 'react';
-import { User, X } from 'lucide-react';
+import { useMemo, useState } from 'react';
+import { User, X, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -10,9 +10,10 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { ProfileBadge } from '@/components/Profile';
 import { useAppStore } from '@/store/appStore';
-import { useClearAllStaging, useBulkUpdateEntryProfile } from '@/hooks/useQueries';
+import { useClearAllStaging, useBulkUpdateEntryProfile, useBulkDeleteEntries } from '@/hooks/useQueries';
 import { devLog } from '@/lib/devLogger';
 import type { Profile } from '@/types';
+import { ConfirmDeleteDialog } from './ConfirmDeleteDialog';
 
 export function BulkActionBar() {
   const {
@@ -22,7 +23,9 @@ export function BulkActionBar() {
   } = useAppStore();
 
   const bulkUpdateEntryProfile = useBulkUpdateEntryProfile();
+  const bulkDeleteEntries = useBulkDeleteEntries();
   const clearAllStaging = useClearAllStaging();
+  const [showConfirmDelete, setShowConfirmDelete] = useState(false);
 
   const stagedEntries = useMemo(() => {
     return entries.filter((e) => stagedEntryIds.has(e.id));
@@ -47,6 +50,16 @@ export function BulkActionBar() {
     
     // Update all user entries in one go
     bulkUpdateEntryProfile.mutate({ entryIds: userSelectedIds, profileId });
+  };
+
+  const handleBulkDelete = () => {
+    setShowConfirmDelete(true);
+  };
+
+  const executeBulkDelete = () => {
+    const selectedIds = Array.from(stagedEntryIds);
+    devLog.action('Bulk delete confirmed', { count: selectedIds.length });
+    bulkDeleteEntries.mutate(selectedIds);
   };
 
   return (
@@ -109,6 +122,16 @@ export function BulkActionBar() {
             variant="ghost" 
             size="sm" 
             className="h-8 gap-2 rounded-full px-3 text-xs text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors"
+            onClick={handleBulkDelete}
+          >
+            <Trash2 className="h-3.5 w-3.5" />
+            Delete Selected
+          </Button>
+
+          <Button 
+            variant="ghost" 
+            size="sm" 
+            className="h-8 gap-2 rounded-full px-3 text-xs text-muted-foreground hover:bg-accent hover:text-accent-foreground transition-colors"
             onClick={() => {
                 devLog.action('Bulk deselect', { count: stagedEntryIds.size });
                 clearAllStaging.mutate();
@@ -119,6 +142,13 @@ export function BulkActionBar() {
           </Button>
         </div>
       </div>
+      {/* Confirm Delete Dialog */}
+      <ConfirmDeleteDialog
+        isOpen={showConfirmDelete}
+        onClose={() => setShowConfirmDelete(false)}
+        onConfirm={executeBulkDelete}
+        count={stagedEntryIds.size}
+      />
     </div>
   );
 }

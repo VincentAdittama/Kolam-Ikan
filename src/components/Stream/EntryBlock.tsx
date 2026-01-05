@@ -49,7 +49,7 @@ import {
 import { cn, formatEntryTime, debounce } from '@/lib/utils';
 import { devLog } from '@/lib/devLogger';
 import { useAppStore } from '@/store/appStore';
-import { useLatestVersion, useUpdateEntryProfile, useBulkUpdateEntryProfile } from '@/hooks/useQueries';
+import { useLatestVersion, useUpdateEntryProfile, useBulkUpdateEntryProfile, useBulkDeleteEntries } from '@/hooks/useQueries';
 import { useStreamRefetch } from '@/hooks/useStreamRefetch';
 import type { Entry, Profile } from '@/types';
 import type { JSONContent } from '@tiptap/react';
@@ -62,6 +62,7 @@ import { CommitDialog } from './CommitDialog';
 import { ProfileBadge } from '@/components/Profile';
 
 import { SlashCommand } from '@/components/Editor/SlashCommand';
+import { ConfirmDeleteDialog } from './ConfirmDeleteDialog';
 
 const lowlight = createLowlight(common);
 
@@ -118,6 +119,8 @@ export function EntryBlock({ entry, isCompact = false }: EntryBlockProps) {
   }, [entry.profile, entry.profileId, profiles]);
 
   const [isCollapsed, setIsCollapsed] = useState(isCompact);
+  const [showConfirmDelete, setShowConfirmDelete] = useState(false);
+  const [isDeletingBulk, setIsDeletingBulk] = useState(false);
   
   // Sync collapsed state with prop
   useEffect(() => {
@@ -141,6 +144,7 @@ export function EntryBlock({ entry, isCompact = false }: EntryBlockProps) {
   // Hook for updating entry profile
   const updateEntryProfile = useUpdateEntryProfile();
   const bulkUpdateEntryProfile = useBulkUpdateEntryProfile();
+  const bulkDeleteEntries = useBulkDeleteEntries();
   
   const [modifiers, setModifiers] = useState({ alt: false, mod: false });
 
@@ -417,17 +421,31 @@ export function EntryBlock({ entry, isCompact = false }: EntryBlockProps) {
 
 
   const handleDelete = async () => {
-    devLog.deleteEntry(entry.id, entry.sequenceId);
-    devLog.apiCall('DELETE', 'delete_entry', { entryId: entry.id });
-    try {
-      await api.deleteEntry(entry.id);
-      devLog.apiSuccess('delete_entry', { entryId: entry.id });
-      removeEntry(entry.id);
-      // Refetch streams to update entry counts
-      refetchStreams();
-    } catch (error) {
-      devLog.apiError('delete_entry', error);
-      throw error;
+    if (isStaged && stagedEntryIds.size > 1) {
+      setIsDeletingBulk(true);
+      setShowConfirmDelete(true);
+    } else {
+      setIsDeletingBulk(false);
+      setShowConfirmDelete(true);
+    }
+  };
+
+  const executeDelete = async () => {
+    if (isDeletingBulk) {
+      const selectedIds = Array.from(stagedEntryIds);
+      devLog.action('Bulk delete confirmed via individual block', { count: selectedIds.length });
+      bulkDeleteEntries.mutate(selectedIds);
+    } else {
+      devLog.deleteEntry(entry.id, entry.sequenceId);
+      devLog.apiCall('DELETE', 'delete_entry', { entryId: entry.id });
+      try {
+        await api.deleteEntry(entry.id);
+        devLog.apiSuccess('delete_entry', { entryId: entry.id });
+        removeEntry(entry.id);
+        refetchStreams();
+      } catch (error) {
+        devLog.apiError('delete_entry', error);
+      }
     }
   };
 
@@ -528,16 +546,16 @@ export function EntryBlock({ entry, isCompact = false }: EntryBlockProps) {
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <button className="flex items-center gap-2 hover:opacity-80 transition-opacity cursor-pointer min-w-0">
-                  {entryProfile ? (
-                    <ProfileBadge profile={entryProfile} size="md" showName showRole />
-                  ) : (
-                    <div className="flex items-center gap-2">
-                      <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary text-primary-foreground">
-                        <User className="h-4 w-4" />
+                    {entryProfile ? (
+                      <ProfileBadge profile={entryProfile} size="md" showName showRole />
+                    ) : (
+                      <div className="flex items-center gap-2">
+                        <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary text-primary-foreground">
+                          <User className="h-4 w-4" />
+                        </div>
+                        <span className="text-sm text-muted-foreground whitespace-nowrap">Assign profile</span>
                       </div>
-                      <span className="text-sm text-muted-foreground">Assign profile</span>
-                    </div>
-                  )}
+                    )}
                 </button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="start" className="w-56">
@@ -762,13 +780,14 @@ export function EntryBlock({ entry, isCompact = false }: EntryBlockProps) {
               <DropdownMenuSeparator />
               <DropdownMenuItem
                 className="text-destructive"
-                onClick={() => {
-                  devLog.menuAction('Entry Options', 'Delete Entry', { entryId: entry.id });
+                onSelect={(e) => {
+                  e.preventDefault(); // Prevent menu from closing immediately to avoid focus theft
+                  devLog.menuAction('Entry Options', isStaged && stagedEntryIds.size > 1 ? 'Delete Selected' : 'Delete Entry', { entryId: entry.id });
                   handleDelete();
                 }}
               >
                 <Trash2 className="mr-2 h-4 w-4" />
-                Delete Entry
+                {isStaged && stagedEntryIds.size > 1 ? 'Delete Selected' : 'Delete Entry'}
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
@@ -821,6 +840,13 @@ export function EntryBlock({ entry, isCompact = false }: EntryBlockProps) {
         open={showCommitDialog}
         onOpenChange={setShowCommitDialog}
         entry={entry}
+      />
+      {/* Confirm Delete Dialog */}
+      <ConfirmDeleteDialog
+        isOpen={showConfirmDelete}
+        onClose={() => setShowConfirmDelete(false)}
+        onConfirm={executeDelete}
+        count={isDeletingBulk ? stagedEntryIds.size : undefined}
       />
     </div>
   );
