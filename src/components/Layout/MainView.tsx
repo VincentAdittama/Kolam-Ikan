@@ -112,6 +112,11 @@ export function MainView() {
         return;
     }
 
+    // Prevent starting selection from the header area - only allow from scroll area
+    if (!(e.target as HTMLElement).closest('[data-scroll-area]')) {
+        return;
+    }
+
     setIsSelecting(true);
     initialStagedIdsRef.current = new Set(stagedEntryIds);
     const rect = mainContainerRef.current?.getBoundingClientRect();
@@ -373,6 +378,7 @@ export function MainView() {
       <ScrollArea 
         className="flex-1 select-none" 
         ref={scrollAreaRef}
+        data-scroll-area
         >
         <div className="px-6 py-4 space-y-4">
           {isLoadingEntries ? (
