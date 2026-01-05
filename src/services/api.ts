@@ -43,8 +43,8 @@ export async function createProfile(
   return invokeWithLogging("create_profile", { input });
 }
 
-export async function getAllProfiles(): Promise<Profile[]> {
-  return invokeWithLogging("get_all_profiles");
+export async function getAllProfiles(userId: string): Promise<Profile[]> {
+  return invokeWithLogging("get_all_profiles", { userId });
 }
 
 export async function getProfile(profileId: string): Promise<Profile | null> {
@@ -81,8 +81,8 @@ export async function createStream(input: CreateStreamInput): Promise<Stream> {
   return invokeWithLogging("create_stream", { input });
 }
 
-export async function getAllStreams(): Promise<StreamMetadata[]> {
-  return invokeWithLogging("get_all_streams");
+export async function getAllStreams(userId: string): Promise<StreamMetadata[]> {
+  return invokeWithLogging("get_all_streams", { userId });
 }
 
 export async function getStreamDetails(streamId: string): Promise<{
@@ -232,12 +232,14 @@ export async function extractBridgeKey(
 }
 
 export async function createPendingBlock(
+  userId: string,
   streamId: string,
   bridgeKey: string,
   stagedContextIds: string[],
   directive: string
 ): Promise<PendingBlock> {
   return invokeWithLogging("create_pending_block", {
+    userId,
     streamId,
     bridgeKey,
     stagedContextIds,

@@ -50,6 +50,7 @@ export function Sidebar() {
     setLoadingEntries,
     toggleSidebar,
     dragRegionHeight,
+    user,
   } = useAppStore();
 
   const [isNewStreamOpen, setIsNewStreamOpen] = React.useState(false);
@@ -61,8 +62,9 @@ export function Sidebar() {
 
   // Fetch streams
   const { data: streamsData, refetch: refetchStreams } = useQuery({
-    queryKey: ['streams'],
-    queryFn: api.getAllStreams,
+    queryKey: ['streams', user?.id],
+    queryFn: () => api.getAllStreams(user!.id),
+    enabled: !!user,
   });
 
   // Update store when streams are fetched
@@ -101,7 +103,10 @@ export function Sidebar() {
     devLog.apiCall('POST', 'create_stream', { title: newStreamTitle.trim() });
 
     try {
+      if (!user) return;
+
       await api.createStream({
+        userId: user.id,
         title: newStreamTitle.trim(),
       });
       devLog.apiSuccess('create_stream');
@@ -190,7 +195,8 @@ export function Sidebar() {
       devLog.action('Creating new daily stream', { title: today });
       devLog.apiCall('POST', 'create_stream', { title: today });
       try {
-        const newStream = await api.createStream({ title: today });
+        if (!user) return;
+        const newStream = await api.createStream({ userId: user.id, title: today });
         devLog.apiSuccess('create_stream');
         setActiveStreamId(newStream.id);
         refetchStreams();

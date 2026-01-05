@@ -27,6 +27,7 @@ impl Database {
             -- STREAMS
             CREATE TABLE IF NOT EXISTS streams (
                 id TEXT PRIMARY KEY,
+                user_id TEXT NOT NULL,
                 title TEXT NOT NULL,
                 description TEXT,
                 tags TEXT DEFAULT '[]',
@@ -39,6 +40,7 @@ impl Database {
             -- PROFILES (Authors/Personas)
             CREATE TABLE IF NOT EXISTS profiles (
                 id TEXT PRIMARY KEY,
+                user_id TEXT NOT NULL,
                 name TEXT NOT NULL,
                 role TEXT CHECK(role IN ('self', 'friend', 'reference', 'ai')) NOT NULL,
                 avatar_url TEXT,
@@ -53,6 +55,7 @@ impl Database {
             -- ENTRIES (The "Blocks")
             CREATE TABLE IF NOT EXISTS entries (
                 id TEXT PRIMARY KEY,
+                user_id TEXT NOT NULL,
                 stream_id TEXT NOT NULL,
                 profile_id TEXT,
                 role TEXT CHECK(role IN ('user', 'ai')) NOT NULL,
@@ -93,6 +96,7 @@ impl Database {
             -- PENDING BLOCKS (Awaiting AI response)
             CREATE TABLE IF NOT EXISTS pending_blocks (
                 id TEXT PRIMARY KEY,
+                user_id TEXT NOT NULL,
                 stream_id TEXT NOT NULL,
                 bridge_key TEXT NOT NULL,
                 staged_context_ids TEXT NOT NULL,
@@ -116,6 +120,29 @@ impl Database {
     }
 
     fn run_migrations(conn: &Connection) -> Result<()> {
+        let tables = ["streams", "profiles", "entries", "pending_blocks"];
+
+        for table in tables {
+            let has_user_id: bool = conn
+                .prepare(&format!(
+                    "SELECT 1 FROM pragma_table_info('{}') WHERE name = 'user_id'",
+                    table
+                ))?
+                .exists([])?;
+
+            if !has_user_id {
+                // Migration: Add user_id column with a dummy default for now
+                conn.execute(
+                    &format!(
+                        "ALTER TABLE {} ADD COLUMN user_id TEXT NOT NULL DEFAULT 'default-user'",
+                        table
+                    ),
+                    [],
+                )
+                .ok();
+            }
+        }
+
         // Check if profile_id column exists in entries
         let has_profile_id: bool = conn
             .prepare("SELECT 1 FROM pragma_table_info('entries') WHERE name = 'profile_id'")?
@@ -129,7 +156,22 @@ impl Database {
             ).ok(); // Ignore errors if column already exists
         }
 
-        // Now create the index (column will exist either from schema or migration)
+        // Now create the indexes
+        conn.execute(
+            "CREATE INDEX IF NOT EXISTS idx_streams_user_id ON streams(user_id)",
+            [],
+        )
+        .ok();
+        conn.execute(
+            "CREATE INDEX IF NOT EXISTS idx_profiles_user_id ON profiles(user_id)",
+            [],
+        )
+        .ok();
+        conn.execute(
+            "CREATE INDEX IF NOT EXISTS idx_entries_user_id ON entries(user_id)",
+            [],
+        )
+        .ok();
         conn.execute(
             "CREATE INDEX IF NOT EXISTS idx_entries_profile_id ON entries(profile_id)",
             [],
@@ -151,9 +193,10 @@ impl Database {
 
             // Create welcome stream
             conn.execute(
-                "INSERT INTO streams (id, title, description, tags, pinned, created_at, updated_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
+                "INSERT INTO streams (id, user_id, title, description, tags, pinned, created_at, updated_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
                 params![
                     stream_id,
+                    "default-user",
                     "Welcome to Kolam Ikan",
                     "Your first stream - feel free to experiment here!",
                     "[\"tutorial\"]",
@@ -230,9 +273,10 @@ impl Database {
             });
 
             conn.execute(
-                "INSERT INTO entries (id, stream_id, role, content, sequence_id, created_at, updated_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
+                "INSERT INTO entries (id, user_id, stream_id, role, content, sequence_id, created_at, updated_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
                 params![
                     entry1_id,
+                    "default-user",
                     stream_id,
                     "user",
                     entry1_content.to_string(),
@@ -255,9 +299,10 @@ impl Database {
             });
 
             conn.execute(
-                "INSERT INTO entries (id, stream_id, role, content, sequence_id, created_at, updated_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
+                "INSERT INTO entries (id, user_id, stream_id, role, content, sequence_id, created_at, updated_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
                 params![
                     entry2_id,
+                    "default-user",
                     stream_id,
                     "user",
                     entry2_content.to_string(),

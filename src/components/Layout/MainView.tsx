@@ -37,6 +37,7 @@ export function MainView() {
     rightPanelVisible,
     toggleRightPanel,
     dragRegionHeight,
+    user,
   } = useAppStore();
 
   const { refetchStreams } = useStreamRefetch();
@@ -88,7 +89,10 @@ export function MainView() {
     devLog.apiCall('POST', 'create_entry', { streamId: activeStreamId, role: 'user', profileId: activeProfileId });
 
     try {
+      if (!user) return;
+
       const newEntry = await api.createEntry({
+        userId: user.id,
         streamId: activeStreamId,
         role: 'user',
         content: emptyContent,

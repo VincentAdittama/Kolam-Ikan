@@ -7,6 +7,8 @@ import { Sidebar } from "@/components/Layout/Sidebar";
 import { MainView } from "@/components/Layout/MainView";
 import { RightPanel } from "@/components/Layout/RightPanel";
 import { useAppStore } from "@/store/appStore";
+import { AuthView } from "@/components/Auth/AuthView";
+import { supabase } from "@/lib/supabase";
 import { useProfiles, useDefaultProfile } from "@/hooks/useQueries";
 import { cn } from "@/lib/utils";
 import "./App.css";
@@ -22,7 +24,37 @@ const queryClient = new QueryClient({
 });
 
 function AppLayout() {
-  const { sidebarVisible, rightPanelVisible, theme, setDragRegionHeight, dragRegionHeight } = useAppStore();
+  const { 
+    sidebarVisible, 
+    rightPanelVisible, 
+    theme, 
+    setDragRegionHeight, 
+    dragRegionHeight,
+    isAuthenticated,
+    setUser
+  } = useAppStore();
+  
+  // Auth listener
+  useEffect(() => {
+    // Initial check
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session) {
+        setUser(session.user, session);
+      }
+    });
+
+    // Listen for changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (session) {
+        setUser(session.user, session);
+      } else {
+        // We don't necessarily want to force logout to default-user here 
+        // if they are intentionally using local-only, but for now let's be strict
+      }
+    });
+
+    return () => subscription.unsubscribe();
+  }, [setUser]);
   
   // Load profiles on app startup
   useProfiles();
@@ -88,6 +120,10 @@ function AppLayout() {
       applyTheme(theme === "dark");
     }
   }, [theme]);
+
+    if (!isAuthenticated) {
+    return <AuthView />;
+  }
 
   return (
     <div 

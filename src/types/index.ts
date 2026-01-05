@@ -25,6 +25,7 @@ export type ProfileRole = "self" | "friend" | "reference" | "ai";
 
 export interface Profile {
   id: string;
+  userId: string;
   name: string;
   role: ProfileRole;
   avatarUrl?: string;
@@ -37,6 +38,7 @@ export interface Profile {
 }
 
 export interface CreateProfileInput {
+  userId: string;
   name: string;
   role: ProfileRole;
   color?: string;
@@ -83,6 +85,7 @@ export const PROFILE_COLORS = [
 
 export interface Stream {
   id: string;
+  userId: string;
   title: string;
   description?: string;
   tags: string[];
@@ -94,6 +97,7 @@ export interface Stream {
 
 export interface StreamMetadata {
   id: string;
+  userId: string;
   title: string;
   entryCount: number;
   lastUpdated: number;
@@ -103,6 +107,7 @@ export interface StreamMetadata {
 }
 
 export interface CreateStreamInput {
+  userId: string;
   title: string;
   description?: string;
   tags?: string[];
@@ -125,6 +130,7 @@ export interface AiMetadata {
 
 export interface Entry {
   id: string;
+  userId: string;
   streamId: string;
   profileId?: string;
   role: EntryRole;
@@ -147,6 +153,7 @@ export interface EntryNode extends Entry {
 }
 
 export interface CreateEntryInput {
+  userId: string;
   streamId: string;
   profileId?: string;
   role: EntryRole;
@@ -368,6 +375,7 @@ export interface BridgeImportResult {
 
 export interface PendingBlock {
   id: string;
+  userId: string;
   streamId: string;
   bridgeKey: string;
   stagedContextIds: string[];

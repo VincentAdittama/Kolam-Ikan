@@ -9,6 +9,7 @@ import type {
   PendingBlock,
   Profile,
 } from "@/types";
+import type { User, Session } from "@supabase/supabase-js";
 
 interface AppState {
   // UI State
@@ -20,6 +21,11 @@ interface AppState {
   theme: "light" | "dark" | "system";
   showEditorToolbar: boolean;
   dragRegionHeight: number;
+
+  // User State
+  user: User | null;
+  session: Session | null;
+  isAuthenticated: boolean;
 
   // Profile State
   profiles: Profile[];
@@ -88,6 +94,10 @@ interface AppState {
   setActiveProfileId: (id: string | null) => void;
   setDefaultProfile: (profile: Profile | null) => void;
   setLoadingProfiles: (loading: boolean) => void;
+
+  // User Actions
+  setUser: (user: User | null, session: Session | null) => void;
+  logout: () => void;
 }
 
 export const useAppStore = create<AppState>((set) => ({
@@ -100,6 +110,11 @@ export const useAppStore = create<AppState>((set) => ({
   theme: "system",
   showEditorToolbar: true,
   dragRegionHeight: 53,
+
+  // Initial User State
+  user: null,
+  session: null,
+  isAuthenticated: false,
 
   // Initial Profile State
   profiles: [],
@@ -316,4 +331,19 @@ export const useAppStore = create<AppState>((set) => ({
     set({ defaultProfile: profile, activeProfileId: profile?.id ?? null });
   },
   setLoadingProfiles: (loading) => set({ isLoadingProfiles: loading }),
+
+  // User Actions
+  setUser: (user, session) => {
+    devLog.action("Store: setUser", { userId: user?.id });
+    set({ user, session, isAuthenticated: !!user });
+  },
+  logout: () => {
+    devLog.action("Store: logout");
+    set({
+      user: null,
+      session: null,
+      isAuthenticated: false,
+      activeProfileId: null,
+    });
+  },
 }));

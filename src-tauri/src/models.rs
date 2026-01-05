@@ -8,6 +8,7 @@ use serde::{Deserialize, Serialize};
 #[serde(rename_all = "camelCase")]
 pub struct Profile {
     pub id: String,
+    pub user_id: String,
     pub name: String,
     pub role: String, // 'self' | 'friend' | 'reference' | 'ai'
     pub avatar_url: Option<String>,
@@ -22,6 +23,7 @@ pub struct Profile {
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CreateProfileInput {
+    pub user_id: String,
     pub name: String,
     pub role: String,
     pub color: Option<String>,
@@ -48,6 +50,7 @@ pub struct UpdateProfileInput {
 #[serde(rename_all = "camelCase")]
 pub struct Stream {
     pub id: String,
+    pub user_id: String,
     pub title: String,
     pub description: Option<String>,
     pub tags: Vec<String>,
@@ -61,6 +64,7 @@ pub struct Stream {
 #[serde(rename_all = "camelCase")]
 pub struct StreamMetadata {
     pub id: String,
+    pub user_id: String,
     pub title: String,
     pub entry_count: i64,
     pub last_updated: i64,
@@ -83,6 +87,7 @@ pub struct AiMetadata {
 #[serde(rename_all = "camelCase")]
 pub struct Entry {
     pub id: String,
+    pub user_id: String,
     pub stream_id: String,
     pub profile_id: Option<String>,
     pub role: String,
@@ -126,6 +131,7 @@ pub struct Spotlight {
 #[serde(rename_all = "camelCase")]
 pub struct PendingBlock {
     pub id: String,
+    pub user_id: String,
     pub stream_id: String,
     pub bridge_key: String,
     pub staged_context_ids: Vec<String>,
@@ -136,6 +142,7 @@ pub struct PendingBlock {
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CreateStreamInput {
+    pub user_id: String,
     pub title: String,
     pub description: Option<String>,
     pub tags: Option<Vec<String>>,
@@ -145,6 +152,7 @@ pub struct CreateStreamInput {
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CreateEntryInput {
+    pub user_id: String,
     pub stream_id: String,
     pub profile_id: Option<String>,
     pub role: String,

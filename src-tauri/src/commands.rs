@@ -25,10 +25,11 @@ pub fn create_profile(db: State<Database>, input: CreateProfileInput) -> Result<
     });
 
     conn.execute(
-        "INSERT INTO profiles (id, name, role, color, initials, bio, is_default, created_at, updated_at) 
-         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)",
+        "INSERT INTO profiles (id, user_id, name, role, color, initials, bio, is_default, created_at, updated_at) 
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)",
         params![
             id,
+            input.user_id,
             input.name,
             input.role,
             input.color,
@@ -43,6 +44,7 @@ pub fn create_profile(db: State<Database>, input: CreateProfileInput) -> Result<
 
     Ok(Profile {
         id,
+        user_id: input.user_id,
         name: input.name,
         role: input.role,
         avatar_url: None,
@@ -56,30 +58,32 @@ pub fn create_profile(db: State<Database>, input: CreateProfileInput) -> Result<
 }
 
 #[tauri::command]
-pub fn get_all_profiles(db: State<Database>) -> Result<Vec<Profile>, String> {
+pub fn get_all_profiles(db: State<Database>, user_id: String) -> Result<Vec<Profile>, String> {
     let conn = db.conn.lock().map_err(|e| e.to_string())?;
 
     let mut stmt = conn
         .prepare(
-            "SELECT id, name, role, avatar_url, color, initials, bio, is_default, created_at, updated_at 
+            "SELECT id, user_id, name, role, avatar_url, color, initials, bio, is_default, created_at, updated_at 
              FROM profiles 
+             WHERE user_id = ?
              ORDER BY is_default DESC, name ASC",
         )
         .map_err(|e| e.to_string())?;
 
     let profiles = stmt
-        .query_map([], |row| {
+        .query_map([user_id], |row| {
             Ok(Profile {
                 id: row.get(0)?,
-                name: row.get(1)?,
-                role: row.get(2)?,
-                avatar_url: row.get(3)?,
-                color: row.get(4)?,
-                initials: row.get(5)?,
-                bio: row.get(6)?,
-                is_default: row.get::<_, i32>(7)? != 0,
-                created_at: row.get(8)?,
-                updated_at: row.get(9)?,
+                user_id: row.get(1)?,
+                name: row.get(2)?,
+                role: row.get(3)?,
+                avatar_url: row.get(4)?,
+                color: row.get(5)?,
+                initials: row.get(6)?,
+                bio: row.get(7)?,
+                is_default: row.get::<_, i32>(8)? != 0,
+                created_at: row.get(9)?,
+                updated_at: row.get(10)?,
             })
         })
         .map_err(|e| e.to_string())?
@@ -94,22 +98,23 @@ pub fn get_profile(db: State<Database>, profile_id: String) -> Result<Option<Pro
     let conn = db.conn.lock().map_err(|e| e.to_string())?;
 
     let result = conn.query_row(
-        "SELECT id, name, role, avatar_url, color, initials, bio, is_default, created_at, updated_at 
+        "SELECT id, user_id, name, role, avatar_url, color, initials, bio, is_default, created_at, updated_at 
          FROM profiles 
          WHERE id = ?1",
         params![profile_id],
         |row| {
             Ok(Profile {
                 id: row.get(0)?,
-                name: row.get(1)?,
-                role: row.get(2)?,
-                avatar_url: row.get(3)?,
-                color: row.get(4)?,
-                initials: row.get(5)?,
-                bio: row.get(6)?,
-                is_default: row.get::<_, i32>(7)? != 0,
-                created_at: row.get(8)?,
-                updated_at: row.get(9)?,
+                user_id: row.get(1)?,
+                name: row.get(2)?,
+                role: row.get(3)?,
+                avatar_url: row.get(4)?,
+                color: row.get(5)?,
+                initials: row.get(6)?,
+                bio: row.get(7)?,
+                is_default: row.get::<_, i32>(8)? != 0,
+                created_at: row.get(9)?,
+                updated_at: row.get(10)?,
             })
         },
     );
@@ -283,7 +288,7 @@ pub fn get_default_profile(db: State<Database>) -> Result<Profile, String> {
 
     // Try to get existing default profile
     let result = conn.query_row(
-        "SELECT id, name, role, avatar_url, color, initials, bio, is_default, created_at, updated_at 
+        "SELECT id, user_id, name, role, avatar_url, color, initials, bio, is_default, created_at, updated_at 
          FROM profiles 
          WHERE is_default = 1
          LIMIT 1",
@@ -291,15 +296,16 @@ pub fn get_default_profile(db: State<Database>) -> Result<Profile, String> {
         |row| {
             Ok(Profile {
                 id: row.get(0)?,
-                name: row.get(1)?,
-                role: row.get(2)?,
-                avatar_url: row.get(3)?,
-                color: row.get(4)?,
-                initials: row.get(5)?,
-                bio: row.get(6)?,
+                user_id: row.get(1)?,
+                name: row.get(2)?,
+                role: row.get(3)?,
+                avatar_url: row.get(4)?,
+                color: row.get(5)?,
+                initials: row.get(6)?,
+                bio: row.get(7)?,
                 is_default: true,
-                created_at: row.get(8)?,
-                updated_at: row.get(9)?,
+                created_at: row.get(9)?,
+                updated_at: row.get(10)?,
             })
         },
     );
@@ -312,10 +318,11 @@ pub fn get_default_profile(db: State<Database>) -> Result<Profile, String> {
             let id = uuid::Uuid::new_v4().to_string();
 
             conn.execute(
-                "INSERT INTO profiles (id, name, role, color, initials, bio, is_default, created_at, updated_at) 
-                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)",
+                "INSERT INTO profiles (id, user_id, name, role, color, initials, bio, is_default, created_at, updated_at) 
+                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)",
                 params![
                     id,
+                    "default-user",
                     "You",
                     "self",
                     "#3B82F6", // Blue
@@ -330,6 +337,7 @@ pub fn get_default_profile(db: State<Database>) -> Result<Profile, String> {
 
             Ok(Profile {
                 id,
+                user_id: "default-user".to_string(),
                 name: "You".to_string(),
                 role: "self".to_string(),
                 avatar_url: None,
@@ -373,10 +381,11 @@ pub fn create_stream(db: State<Database>, input: CreateStreamInput) -> Result<St
     let tags_json = serde_json::to_string(&tags).map_err(|e| e.to_string())?;
 
     conn.execute(
-        "INSERT INTO streams (id, title, description, tags, color, pinned, created_at, updated_at) 
-         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
+        "INSERT INTO streams (id, user_id, title, description, tags, color, pinned, created_at, updated_at) 
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)",
         params![
             id,
+            input.user_id,
             input.title,
             input.description,
             tags_json,
@@ -390,6 +399,7 @@ pub fn create_stream(db: State<Database>, input: CreateStreamInput) -> Result<St
 
     Ok(Stream {
         id,
+        user_id: input.user_id,
         title: input.title,
         description: input.description,
         tags,
@@ -401,17 +411,21 @@ pub fn create_stream(db: State<Database>, input: CreateStreamInput) -> Result<St
 }
 
 #[tauri::command]
-pub fn get_all_streams(db: State<Database>) -> Result<Vec<StreamMetadata>, String> {
+pub fn get_all_streams(
+    db: State<Database>,
+    user_id: String,
+) -> Result<Vec<StreamMetadata>, String> {
     let conn = db.conn.lock().map_err(|e| e.to_string())?;
 
     let mut stmt = conn
         .prepare(
             r#"
             SELECT 
-                s.id, s.title, s.pinned, s.color, s.tags, s.updated_at,
+                s.id, s.user_id, s.title, s.pinned, s.color, s.tags, s.updated_at,
                 COUNT(e.id) as entry_count
             FROM streams s
             LEFT JOIN entries e ON s.id = e.stream_id
+            WHERE s.user_id = ?
             GROUP BY s.id
             ORDER BY s.pinned DESC, s.updated_at DESC
             "#,
@@ -419,20 +433,21 @@ pub fn get_all_streams(db: State<Database>) -> Result<Vec<StreamMetadata>, Strin
         .map_err(|e| e.to_string())?;
 
     let streams = stmt
-        .query_map([], |row| {
-            let tags_str: Option<String> = row.get(4)?;
+        .query_map([user_id], |row| {
+            let tags_str: Option<String> = row.get(5)?;
             let tags: Vec<String> = tags_str
                 .and_then(|s| serde_json::from_str(&s).ok())
                 .unwrap_or_default();
 
             Ok(StreamMetadata {
                 id: row.get(0)?,
-                title: row.get(1)?,
-                pinned: row.get::<_, i32>(2)? != 0,
-                color: row.get(3)?,
+                user_id: row.get(1)?,
+                title: row.get(2)?,
+                pinned: row.get::<_, i32>(3)? != 0,
+                color: row.get(4)?,
                 tags,
-                last_updated: row.get(5)?,
-                entry_count: row.get(6)?,
+                last_updated: row.get(6)?,
+                entry_count: row.get(7)?,
             })
         })
         .map_err(|e| e.to_string())?
@@ -452,7 +467,7 @@ pub fn get_stream_details(
     // Get stream
     let stream = conn
         .query_row(
-            "SELECT id, title, description, tags, color, pinned, created_at, updated_at 
+            "SELECT id, user_id, title, description, tags, color, pinned, created_at, updated_at 
              FROM streams WHERE id = ?1",
             params![stream_id],
             |row| {
@@ -463,13 +478,14 @@ pub fn get_stream_details(
 
                 Ok(Stream {
                     id: row.get(0)?,
-                    title: row.get(1)?,
-                    description: row.get(2)?,
+                    user_id: row.get(1)?,
+                    title: row.get(2)?,
+                    description: row.get(3)?,
                     tags,
-                    color: row.get(4)?,
-                    pinned: row.get::<_, i32>(5)? != 0,
-                    created_at: row.get(6)?,
-                    updated_at: row.get(7)?,
+                    color: row.get(5)?,
+                    pinned: row.get::<_, i32>(6)? != 0,
+                    created_at: row.get(7)?,
+                    updated_at: row.get(8)?,
                 })
             },
         )
@@ -480,6 +496,7 @@ pub fn get_stream_details(
         .prepare(
             "SELECT 
                 e.id, 
+                e.user_id,
                 e.stream_id, 
                 e.profile_id, 
                 e.role, 
@@ -491,7 +508,7 @@ pub fn get_stream_details(
                 e.ai_metadata, 
                 e.created_at, 
                 e.updated_at,
-                p.id, p.name, p.role, p.avatar_url, p.color, p.initials, p.bio, p.is_default, p.created_at, p.updated_at
+                p.id, p.user_id, p.name, p.role, p.avatar_url, p.color, p.initials, p.bio, p.is_default, p.created_at, p.updated_at
              FROM entries e
              LEFT JOIN profiles p ON e.profile_id = p.id
              WHERE e.stream_id = ?1 
@@ -501,28 +518,29 @@ pub fn get_stream_details(
 
     let entries = stmt
         .query_map(params![stream_id], |row| {
-            let content_str: String = row.get(4)?;
+            let content_str: String = row.get(5)?;
             let content: serde_json::Value = serde_json::from_str(&content_str).unwrap_or_default();
-            let parent_ids_str: Option<String> = row.get(8)?;
+            let parent_ids_str: Option<String> = row.get(9)?;
             let parent_context_ids: Option<Vec<String>> =
                 parent_ids_str.and_then(|s| serde_json::from_str(&s).ok());
-            let ai_metadata_str: Option<String> = row.get(9)?;
+            let ai_metadata_str: Option<String> = row.get(10)?;
             let ai_metadata: Option<AiMetadata> =
                 ai_metadata_str.and_then(|s| serde_json::from_str(&s).ok());
 
             // Construct profile if joined successfully
-            let profile = if let Ok(id) = row.get::<_, String>(12) {
+            let profile = if let Ok(id) = row.get::<_, String>(13) {
                 Some(Profile {
                     id,
-                    name: row.get(13)?,
-                    role: row.get(14)?,
-                    avatar_url: row.get(15)?,
-                    color: row.get(16)?,
-                    initials: row.get(17)?,
-                    bio: row.get(18)?,
-                    is_default: row.get::<_, i32>(19)? != 0,
-                    created_at: row.get(20)?,
-                    updated_at: row.get(21)?,
+                    user_id: row.get(14)?,
+                    name: row.get(15)?,
+                    role: row.get(16)?,
+                    avatar_url: row.get(17)?,
+                    color: row.get(18)?,
+                    initials: row.get(19)?,
+                    bio: row.get(20)?,
+                    is_default: row.get::<_, i32>(21)? != 0,
+                    created_at: row.get(22)?,
+                    updated_at: row.get(23)?,
                 })
             } else {
                 None
@@ -530,17 +548,18 @@ pub fn get_stream_details(
 
             Ok(Entry {
                 id: row.get(0)?,
-                stream_id: row.get(1)?,
-                profile_id: row.get(2)?,
-                role: row.get(3)?,
+                user_id: row.get(1)?,
+                stream_id: row.get(2)?,
+                profile_id: row.get(3)?,
+                role: row.get(4)?,
                 content,
-                sequence_id: row.get(5)?,
-                version_head: row.get(6)?,
-                is_staged: row.get::<_, i32>(7)? != 0,
+                sequence_id: row.get(6)?,
+                version_head: row.get(7)?,
+                is_staged: row.get::<_, i32>(8)? != 0,
                 parent_context_ids,
                 ai_metadata,
-                created_at: row.get(10)?,
-                updated_at: row.get(11)?,
+                created_at: row.get(11)?,
+                updated_at: row.get(12)?,
                 profile,
             })
         })
@@ -673,9 +692,9 @@ pub fn create_entry(db: State<Database>, input: CreateEntryInput) -> Result<Entr
         .map_err(|e| e.to_string())?;
 
     conn.execute(
-        "INSERT INTO entries (id, stream_id, profile_id, role, content, sequence_id, version_head, is_staged, parent_context_ids, ai_metadata, created_at, updated_at) 
-         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12)",
-        params![id, input.stream_id, input.profile_id, input.role, content_str, sequence_id, 0, 0, parent_context_ids_str, ai_metadata_str, now, now],
+        "INSERT INTO entries (id, user_id, stream_id, profile_id, role, content, sequence_id, version_head, is_staged, parent_context_ids, ai_metadata, created_at, updated_at) 
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13)",
+        params![id, input.user_id, input.stream_id, input.profile_id, input.role, content_str, sequence_id, 0, 0, parent_context_ids_str, ai_metadata_str, now, now],
     )
     .map_err(|e| e.to_string())?;
 
@@ -688,6 +707,7 @@ pub fn create_entry(db: State<Database>, input: CreateEntryInput) -> Result<Entr
 
     Ok(Entry {
         id,
+        user_id: input.user_id,
         stream_id: input.stream_id,
         profile_id: input.profile_id,
         role: input.role,
@@ -820,7 +840,7 @@ pub fn get_staged_entries(db: State<Database>, stream_id: String) -> Result<Vec<
 
     let mut stmt = conn
         .prepare(
-            "SELECT id, stream_id, profile_id, role, content, sequence_id, version_head, is_staged, 
+            "SELECT id, user_id, stream_id, profile_id, role, content, sequence_id, version_head, is_staged, 
                     parent_context_ids, ai_metadata, created_at, updated_at 
              FROM entries 
              WHERE stream_id = ?1 AND is_staged = 1
@@ -830,28 +850,29 @@ pub fn get_staged_entries(db: State<Database>, stream_id: String) -> Result<Vec<
 
     let entries = stmt
         .query_map(params![stream_id], |row| {
-            let content_str: String = row.get(4)?;
+            let content_str: String = row.get(5)?;
             let content: serde_json::Value = serde_json::from_str(&content_str).unwrap_or_default();
-            let parent_ids_str: Option<String> = row.get(8)?;
+            let parent_ids_str: Option<String> = row.get(9)?;
             let parent_context_ids: Option<Vec<String>> =
                 parent_ids_str.and_then(|s| serde_json::from_str(&s).ok());
-            let ai_metadata_str: Option<String> = row.get(9)?;
+            let ai_metadata_str: Option<String> = row.get(10)?;
             let ai_metadata: Option<AiMetadata> =
                 ai_metadata_str.and_then(|s| serde_json::from_str(&s).ok());
 
             Ok(Entry {
                 id: row.get(0)?,
-                stream_id: row.get(1)?,
-                profile_id: row.get(2)?,
-                role: row.get(3)?,
+                user_id: row.get(1)?,
+                stream_id: row.get(2)?,
+                profile_id: row.get(3)?,
+                role: row.get(4)?,
                 content,
-                sequence_id: row.get(5)?,
-                version_head: row.get(6)?,
+                sequence_id: row.get(6)?,
+                version_head: row.get(7)?,
                 is_staged: true,
                 parent_context_ids,
                 ai_metadata,
-                created_at: row.get(10)?,
-                updated_at: row.get(11)?,
+                created_at: row.get(11)?,
+                updated_at: row.get(12)?,
                 profile: None,
             })
         })
@@ -1108,6 +1129,7 @@ pub fn extract_bridge_key(input_text: String) -> Option<String> {
 #[tauri::command]
 pub fn create_pending_block(
     db: State<Database>,
+    user_id: String,
     stream_id: String,
     bridge_key: String,
     staged_context_ids: Vec<String>,
@@ -1119,14 +1141,15 @@ pub fn create_pending_block(
     let context_ids_json = serde_json::to_string(&staged_context_ids).map_err(|e| e.to_string())?;
 
     conn.execute(
-        "INSERT INTO pending_blocks (id, stream_id, bridge_key, staged_context_ids, directive, created_at) 
-         VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
-        params![id, stream_id, bridge_key, context_ids_json, directive, now],
+        "INSERT INTO pending_blocks (id, user_id, stream_id, bridge_key, staged_context_ids, directive, created_at) 
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
+        params![id, user_id, stream_id, bridge_key, context_ids_json, directive, now],
     )
     .map_err(|e| e.to_string())?;
 
     Ok(PendingBlock {
         id,
+        user_id,
         stream_id,
         bridge_key,
         staged_context_ids,
@@ -1143,7 +1166,7 @@ pub fn get_pending_block(
     let conn = db.conn.lock().map_err(|e| e.to_string())?;
 
     let result = conn.query_row(
-        "SELECT id, stream_id, bridge_key, staged_context_ids, directive, created_at 
+        "SELECT id, user_id, stream_id, bridge_key, staged_context_ids, directive, created_at 
          FROM pending_blocks 
          WHERE stream_id = ?1 
          ORDER BY created_at DESC 
@@ -1156,11 +1179,12 @@ pub fn get_pending_block(
 
             Ok(PendingBlock {
                 id: row.get(0)?,
-                stream_id: row.get(1)?,
-                bridge_key: row.get(2)?,
+                user_id: row.get(1)?,
+                stream_id: row.get(2)?,
+                bridge_key: row.get(3)?,
                 staged_context_ids,
-                directive: row.get(4)?,
-                created_at: row.get(5)?,
+                directive: row.get(5)?,
+                created_at: row.get(6)?,
             })
         },
     );
@@ -1196,7 +1220,7 @@ pub fn search_entries(db: State<Database>, query: String) -> Result<Vec<Entry>, 
 
     let mut stmt = conn
         .prepare(
-            "SELECT id, stream_id, profile_id, role, content, sequence_id, version_head, is_staged, 
+            "SELECT id, user_id, stream_id, profile_id, role, content, sequence_id, version_head, is_staged, 
                     parent_context_ids, ai_metadata, created_at, updated_at 
              FROM entries 
              WHERE content LIKE ?1
@@ -1207,28 +1231,29 @@ pub fn search_entries(db: State<Database>, query: String) -> Result<Vec<Entry>, 
 
     let entries = stmt
         .query_map(params![search_pattern], |row| {
-            let content_str: String = row.get(4)?;
+            let content_str: String = row.get(5)?;
             let content: serde_json::Value = serde_json::from_str(&content_str).unwrap_or_default();
-            let parent_ids_str: Option<String> = row.get(8)?;
+            let parent_ids_str: Option<String> = row.get(9)?;
             let parent_context_ids: Option<Vec<String>> =
                 parent_ids_str.and_then(|s| serde_json::from_str(&s).ok());
-            let ai_metadata_str: Option<String> = row.get(9)?;
+            let ai_metadata_str: Option<String> = row.get(10)?;
             let ai_metadata: Option<AiMetadata> =
                 ai_metadata_str.and_then(|s| serde_json::from_str(&s).ok());
 
             Ok(Entry {
                 id: row.get(0)?,
-                stream_id: row.get(1)?,
-                profile_id: row.get(2)?,
-                role: row.get(3)?,
+                user_id: row.get(1)?,
+                stream_id: row.get(2)?,
+                profile_id: row.get(3)?,
+                role: row.get(4)?,
                 content,
-                sequence_id: row.get(5)?,
-                version_head: row.get(6)?,
-                is_staged: row.get::<_, i32>(7)? != 0,
+                sequence_id: row.get(6)?,
+                version_head: row.get(7)?,
+                is_staged: row.get::<_, i32>(8)? != 0,
                 parent_context_ids,
                 ai_metadata,
-                created_at: row.get(10)?,
-                updated_at: row.get(11)?,
+                created_at: row.get(11)?,
+                updated_at: row.get(12)?,
                 profile: None,
             })
         })

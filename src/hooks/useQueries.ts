@@ -14,20 +14,22 @@ import type { JSONContent } from "@tiptap/react";
 // ============================================================
 
 export function useProfiles() {
-  const { setProfiles, setLoadingProfiles } = useAppStore();
+  const { setProfiles, setLoadingProfiles, user } = useAppStore();
 
   return useQuery({
-    queryKey: ["profiles"],
+    queryKey: ["profiles", user?.id],
     queryFn: async () => {
+      if (!user) return [];
       setLoadingProfiles(true);
       try {
-        const profiles = await api.getAllProfiles();
+        const profiles = await api.getAllProfiles(user.id);
         setProfiles(profiles);
         return profiles;
       } finally {
         setLoadingProfiles(false);
       }
     },
+    enabled: !!user,
   });
 }
 
@@ -195,15 +197,17 @@ export function useBulkUpdateEntryProfile() {
 // ============================================================
 
 export function useStreams() {
-  const { setStreams } = useAppStore();
+  const { setStreams, user } = useAppStore();
 
   return useQuery({
-    queryKey: ["streams"],
+    queryKey: ["streams", user?.id],
     queryFn: async () => {
-      const streams = await api.getAllStreams();
+      if (!user) return [];
+      const streams = await api.getAllStreams(user.id);
       setStreams(streams);
       return streams;
     },
+    enabled: !!user,
   });
 }
 

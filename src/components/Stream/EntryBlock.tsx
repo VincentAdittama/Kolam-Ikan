@@ -107,6 +107,7 @@ export function EntryBlock({ entry, isCompact = false }: EntryBlockProps) {
     entries,
     addEntry,
     activeProfileId,
+    user,
   } = useAppStore();
 
   // Get profile for this entry
@@ -187,7 +188,10 @@ export function EntryBlock({ entry, isCompact = false }: EntryBlockProps) {
     };
 
     try {
+      if (!user) return;
+      
       const newEntry = await api.createEntry({
+        userId: user.id,
         streamId: activeStreamId,
         role: 'user',
         content: emptyContent,
