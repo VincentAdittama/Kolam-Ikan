@@ -1,5 +1,8 @@
 import { invoke } from "@tauri-apps/api/core";
 import { devLog } from "@/lib/devLogger";
+// Helper to check if running in Tauri environment
+const isTauri = () =>
+  typeof window !== "undefined" && !!(window as any).__TAURI_INTERNALS__;
 import type {
   Stream,
   StreamMetadata,
@@ -23,6 +26,20 @@ async function invokeWithLogging<T>(
   args?: Record<string, unknown>
 ): Promise<T> {
   devLog.apiCall("INVOKE", command, args);
+
+  if (!isTauri()) {
+    console.warn(`[Mock] Web Env - Skipping invoke: ${command}`, args);
+    // Return a promise that never resolves (or resolves to null) to prevent crashes but also stop UI form loading real data
+    // For now, let's just throw a friendly error or return undefined cast as T
+    // Returning undefined might crash callers destructuring the result.
+    // Throwing allows useQuery to go into error state.
+    // But for "void" returns it's fine.
+    // Let's return a rejected promise that isn't a "crash" but a handled error.
+    return Promise.reject(
+      new Error(`Web environment: cannot invoke ${command}`)
+    );
+  }
+
   try {
     const result = await invoke<T>(command, args);
     devLog.apiSuccess(command, { hasResult: result !== undefined });

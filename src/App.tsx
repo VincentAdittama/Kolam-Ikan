@@ -1,4 +1,4 @@
-import { useEffect, useCallback } from 'react';
+import { useEffect, useCallback, useState } from 'react';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import { platform } from '@tauri-apps/plugin-os';
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -33,6 +33,7 @@ function AppLayout() {
     isAuthenticated,
     setUser
   } = useAppStore();
+  const [isMacos, setIsMacos] = useState(false);
   
   // Auth listener
   useEffect(() => {
@@ -64,13 +65,35 @@ function AppLayout() {
   useEffect(() => {
     const initDragRegionHeight = async () => {
       try {
+        // Check if running in Tauri before calling platform logic
+        // This prevents the "platform is undefined" error on web
+        const isTauri = typeof window !== 'undefined' && !!(window as any).__TAURI_INTERNALS__;
+        
+        if (!isTauri) {
+             throw new Error("Not in Tauri environment");
+        }
+
         const os = await platform();
-        const height = os === 'macos' ? 53 : 32;
-        setDragRegionHeight(height);
+        const isMac = os === 'macos';
+        setIsMacos(isMac);
+        
+        // Always use 53px height as requested by user
+        setDragRegionHeight(53);
+        
+        // Dynamically set traffic light width variable
+        document.documentElement.style.setProperty(
+          '--macos-traffic-light-width', 
+          isMac ? '90px' : '0px'
+        );
+
       } catch (error) {
-        // Fallback for development or when plugin is not available
-        console.warn('Failed to detect OS, using default height:', error);
-        setDragRegionHeight(53); // Default to macOS height
+        // Fallback for development (web) or when plugin is not available
+        console.warn('Failed to detect OS, using default (web) configuration:', error);
+        setIsMacos(false);
+        setDragRegionHeight(53); // Always 53px
+        
+        // Ensure traffic light width is 0 for web defaults
+        document.documentElement.style.setProperty('--macos-traffic-light-width', '0px');
       }
     };
     initDragRegionHeight();
@@ -82,6 +105,9 @@ function AppLayout() {
   // This allows clicks on buttons, inputs, etc. to work normally while
   // still enabling window dragging from empty header space.
   const handleMouseDown = useCallback((e: React.MouseEvent) => {
+    // Only enable dragging on macOS
+    if (!isMacos) return;
+
     // Only trigger in the drag region height
     if (e.clientY > dragRegionHeight) return;
     
@@ -93,7 +119,7 @@ function AppLayout() {
     // Start native window drag
     e.preventDefault();
     getCurrentWindow().startDragging();
-  }, [dragRegionHeight]);
+  }, [dragRegionHeight, isMacos]);
 
   useEffect(() => {
     const root = window.document.documentElement;
