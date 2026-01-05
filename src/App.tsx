@@ -30,15 +30,18 @@ function AppLayout() {
 
   // Set drag region height based on OS
   useEffect(() => {
-    try {
-      const os = platform();
-      const height = os === 'macos' ? 53 : 32;
-      setDragRegionHeight(height);
-    } catch (error) {
-      // Fallback for development or when plugin is not available
-      console.warn('Failed to detect OS, using default height:', error);
-      setDragRegionHeight(53); // Default to macOS height
-    }
+    const initDragRegionHeight = async () => {
+      try {
+        const os = await platform();
+        const height = os === 'macos' ? 53 : 32;
+        setDragRegionHeight(height);
+      } catch (error) {
+        // Fallback for development or when plugin is not available
+        console.warn('Failed to detect OS, using default height:', error);
+        setDragRegionHeight(53); // Default to macOS height
+      }
+    };
+    initDragRegionHeight();
   }, [setDragRegionHeight]);
 
   // ══════════════════════════════════════════════════════════════════════
