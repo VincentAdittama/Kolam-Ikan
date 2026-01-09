@@ -12,6 +12,7 @@ interface ProfileBadgeProps {
   showName?: boolean;
   showRole?: boolean;
   className?: string;
+  showTooltip?: boolean;
 }
 
 const sizeClasses = {
@@ -40,41 +41,50 @@ export function ProfileBadge({
   showName = false,
   showRole = false,
   className,
+  showTooltip = true,
 }: ProfileBadgeProps) {
   const initials = profile.initials || profile.name.slice(0, 2).toUpperCase();
   const backgroundColor = profile.color || '#3B82F6';
   
+  const badgeContent = (
+    <div className={cn('flex items-center gap-2', className)}>
+      <div
+        className={cn(
+          'flex items-center justify-center rounded-full font-semibold text-white shrink-0',
+          sizeClasses[size],
+          roleBorderStyles[profile.role as ProfileRole]
+        )}
+        style={{ 
+          backgroundColor,
+          borderColor: backgroundColor,
+        }}
+      >
+        {initials}
+      </div>
+      
+      {showName && (
+        <div className="flex flex-col min-w-0">
+          <span className="text-sm font-medium leading-tight truncate">
+            {profile.name}
+          </span>
+          {showRole && (
+            <span className="text-xs text-muted-foreground leading-tight">
+              {roleLabels[profile.role as ProfileRole]}
+            </span>
+          )}
+        </div>
+      )}
+    </div>
+  );
+
+  if (!showTooltip) {
+    return badgeContent;
+  }
+  
   return (
     <Tooltip>
       <TooltipTrigger asChild>
-        <div className={cn('flex items-center gap-2', className)}>
-          <div
-            className={cn(
-              'flex items-center justify-center rounded-full font-semibold text-white shrink-0',
-              sizeClasses[size],
-              roleBorderStyles[profile.role as ProfileRole]
-            )}
-            style={{ 
-              backgroundColor,
-              borderColor: backgroundColor,
-            }}
-          >
-            {initials}
-          </div>
-          
-          {showName && (
-            <div className="flex flex-col min-w-0">
-              <span className="text-sm font-medium leading-tight truncate">
-                {profile.name}
-              </span>
-              {showRole && (
-                <span className="text-xs text-muted-foreground leading-tight">
-                  {roleLabels[profile.role as ProfileRole]}
-                </span>
-              )}
-            </div>
-          )}
-        </div>
+        {badgeContent}
       </TooltipTrigger>
       <TooltipContent side="right" className="max-w-xs">
         <div className="flex flex-col gap-1">

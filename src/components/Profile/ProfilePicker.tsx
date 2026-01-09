@@ -72,7 +72,7 @@ export function ProfilePicker({
               onClick={() => onProfileSelect(profile)}
               className="flex items-center gap-2 cursor-pointer"
             >
-              <ProfileBadge profile={profile} size="sm" />
+              <ProfileBadge profile={profile} size="sm" showTooltip={false} />
               <div className="flex flex-col flex-1">
                 <span className="text-sm font-medium">{profile.name}</span>
                 <span className="text-xs text-muted-foreground capitalize">

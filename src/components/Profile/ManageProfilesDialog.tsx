@@ -238,7 +238,7 @@ export function ManageProfilesDialog({
                         {availableProfiles.map(p => (
                           <SelectItem key={p.id} value={p.id}>
                             <div className="flex items-center gap-2">
-                              <ProfileBadge profile={p} size="sm" />
+                              <ProfileBadge profile={p} size="sm" showTooltip={false} />
                               <span>{p.name}</span>
                             </div>
                           </SelectItem>
